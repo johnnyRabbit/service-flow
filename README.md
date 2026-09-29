@@ -399,6 +399,57 @@ npm run build      # produção
 npm run typecheck  # verificação de tipos
 ```
 
+### 🚀 Deploy no Vercel
+
+Este protótipo está pronto para deploy no Vercel. Existem duas formas:
+
+#### Opção A — Via Vercel CLI (recomendado)
+
+```bash
+# 1. Instalar Vercel CLI (se ainda não tiver)
+npm i -g vercel
+
+# 2. Login
+vercel login
+
+# 3. Deploy de preview
+vercel
+
+# 4. Deploy para produção
+vercel --prod
+```
+
+#### Opção B — Via GitHub + Vercel Dashboard
+
+1. Fazer push do repositório para o GitHub/GitLab/Bitbucket
+2. Aceder a [vercel.com/new](https://vercel.com/new)
+3. Importar o repositório
+4. Vercel deteta automaticamente o Vite (framework preset)
+5. Clicar em **Deploy**
+
+#### Opção C — Via Vercel Dashboard (sem Git)
+
+1. Aceder a [vercel.com/new](https://vercel.com/new)
+2. Escolher "Deploy from template" ou arrastar a pasta `dist/` gerada por `npm run build`
+
+### Configuração (`vercel.json`)
+
+O ficheiro `vercel.json` já está configurado com:
+- **Framework preset**: Vite
+- **Rewrites**: necessário para o React Router funcionar (SPA)
+- **Cache headers**: para assets estáticos em `/assets/`
+
+```json
+{
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+> 💡 **Nota sobre o README principal**: o README descreve a arquitetura de produção com **Next.js + NestJS** (monorepo). Este protótipo é apenas o **frontend de demonstração** em Vite + React. Para o produto final, o `apps/web` em Next.js também será deployado no Vercel, seguindo a mesma lógica.
+
 ---
 
 ## 🏢 Casos de Uso Iniciais
