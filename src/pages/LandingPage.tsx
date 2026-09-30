@@ -1,10 +1,9 @@
 import { Snowflake, MessageSquare, Zap, Shield, Clock, TrendingUp, CheckCircle, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-interface LandingPageProps {
-  onLogin: () => void;
-}
-
-export function LandingPage({ onLogin }: LandingPageProps) {
+export function LandingPage() {
+  const navigate = useNavigate();
+  const onLogin = () => navigate('/login');
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

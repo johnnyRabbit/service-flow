@@ -322,20 +322,62 @@ Arquitetura **modular dentro do monólito**.
 
 ## 📅 Fases de Implementação
 
-| Fase | Conteúdo |
-|---|---|
-| **1** | Monorepo, auth, organizations, database |
-| **2** | Customers, services, requests |
-| **3** | Conversations, messages, inbox |
-| **4** | AI providers, structured output, tools |
-| **5** | Human handoff |
-| **6** | WhatsApp |
-| **7** | Appointments |
-| **8** | BullMQ automations |
-| **9** | Dashboard |
-| **10** | Hardening, tests, logging |
+| Fase | Conteúdo | Estado |
+|---|---|---|
+| **1** | Monorepo, auth, organizations, database | ✅ Implementado (simulado no frontend) |
+| **2** | Customers, services, requests | ✅ Implementado (CRUD completo) |
+| **3** | Conversations, messages, inbox | ✅ Implementado |
+| **4** | AI providers, structured output, tools | ✅ Implementado (simulador) |
+| **5** | Human handoff | ✅ Implementado |
+| **6** | WhatsApp | ✅ Implementado (testador de webhook) |
+| **7** | Appointments | ✅ Implementado |
+| **8** | BullMQ automations | ✅ Implementado (UI) |
+| **9** | Dashboard | ✅ Implementado |
+| **10** | Hardening, tests, logging | 🔜 Próxima fase |
 
 > Em cada fase: **implementar → testar → documentar → explicar decisões → indicar riscos → só depois avançar**.
+
+### Detalhes das Fases 1 e 2
+
+#### Fase 1 — Auth, Organizations, Database
+
+**Implementado:**
+- ✅ `AuthContext` com login/logout, persistência em localStorage, multi-tenant
+- ✅ Contas demo: `admin@climatech.pt` / `carlos@climatech.pt` (password: `demo123`)
+- ✅ Qualquer email com password `demo123` cria automaticamente um novo tenant
+- ✅ `DataProvider` com "database" em memória isolada por `organizationId`
+- ✅ Repositórios CRUD: `customersRepo`, `servicesRepo`, `requestsRepo`, `conversationsRepo`, `appointmentsRepo`, `orgRepo`, `auditRepo`
+- ✅ `ToastContext` para notificações em tempo real
+- ✅ Página de Login com UI completa e contas demo
+- ✅ Isolamento de tenant: cada organização tem a sua própria "database"
+
+**Decisões:**
+- Simular o backend com Context API + memória (em produção: NestJS + Prisma + Supabase)
+- `localStorage` para persistir sessão (em produção: Supabase Auth com JWT)
+- Repositórios seguem o padrão Repository para fácil migração para API real
+
+**Riscos:**
+- Dados em memória perdem-se ao refresh (exceto auth)
+- Sem validação de schema no frontend (em produção: Zod no backend)
+
+#### Fase 2 — Customers, Services, Requests
+
+**Implementado:**
+- ✅ Página `CustomersPage` com CRUD completo (criar, editar, eliminar, pesquisar)
+- ✅ Página `Services` com criação de novos serviços via modal
+- ✅ Página `Requests` com workflow de estados interativo (clique para mudar estado)
+- ✅ Modal de criação de pedido com seleção de cliente/serviço/urgência
+- ✅ Audit log automático em todas as operações CRUD
+- ✅ Toasts de feedback para cada ação
+
+**Decisões:**
+- Workflow de estados em `Requests` clicável para demonstrar transições
+- Audit log gerado automaticamente por cada operação nos repositórios
+- Modais reutilizáveis (`Modal` component) para consistência visual
+
+**Riscos:**
+- Sem paginação (em produção: cursor-based pagination)
+- Sem validação de permissões RBAC nas operações
 
 ---
 
@@ -365,6 +407,52 @@ Este repositório contém um **protótipo funcional do frontend** que demonstra 
 - React Router
 - Recharts (dashboard)
 - Lucide React (ícones)
+
+### Arquitetura do Protótipo
+
+```
+src/
+├── App.tsx                    # Rotas + providers (Auth, Toast, Data)
+├── components/
+│   ├── Layout.tsx             # Sidebar + topbar dinâmicos
+│   └── ui/
+│       └── Modal.tsx          # Modal reutilizável
+├── contexts/
+│   ├── AuthContext.tsx        # Autenticação multi-tenant
+│   ├── DataContext.tsx        # CRUD + estado global
+│   └── ToastContext.tsx       # Notificações
+├── data/
+│   └── mockData.ts            # Dados iniciais de demonstração
+├── lib/
+│   ├── ai-simulator.ts        # Simula AI engine (structured output)
+│   └── db.ts                  # "Database" em memória com repos CRUD
+├── pages/
+│   ├── LandingPage.tsx        # Página pública
+│   ├── LoginPage.tsx          # Login com contas demo
+│   ├── Dashboard.tsx          # Métricas dinâmicas
+│   ├── Inbox.tsx              # Lista de conversas
+│   ├── ConversationDetail.tsx # Conversa + IA em tempo real
+│   ├── Requests.tsx           # Pedidos com workflow
+│   ├── CustomersPage.tsx      # CRUD de clientes
+│   ├── Services.tsx           # CRUD de serviços
+│   ├── Appointments.tsx       # Calendário
+│   ├── WebhookTester.tsx      # Simulador de WhatsApp
+│   ├── Automations.tsx        # Regras Trigger→Condition→Action
+│   ├── AuditLogs.tsx          # Registo de auditoria
+│   └── Settings.tsx           # Configurações multi-tenant
+├── types/
+│   └── index.ts               # Tipos TypeScript
+└── index.css                  # Tailwind + tema
+```
+
+**Fluxo de dados:**
+```
+User Action → DataContext → Repository (db.ts) → Audit Log → Toast
+                           ↕
+                    AI Simulator (ai-simulator.ts)
+                           ↕
+                    Conversations / Requests
+```
 
 ### Estrutura
 ```

@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
 import { Layout } from './components/Layout';
 import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
 import { Dashboard } from './pages/Dashboard';
 import { Inbox } from './pages/Inbox';
 import { ConversationDetail } from './pages/ConversationDetail';
@@ -11,32 +11,68 @@ import { Appointments } from './pages/Appointments';
 import { Automations } from './pages/Automations';
 import { Settings } from './pages/Settings';
 import { AuditLogs } from './pages/AuditLogs';
+import { CustomersPage } from './pages/CustomersPage';
+import { WebhookTester } from './pages/WebhookTester';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { DataProvider } from './contexts/DataContext';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-
-  if (!isAuthenticated) {
-    return <LandingPage onLogin={() => setIsAuthenticated(true)} />;
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-3 animate-pulse">
+            <span className="text-white text-lg">❄</span>
+          </div>
+          <p className="text-sm text-gray-500">A carregar...</p>
+        </div>
+      </div>
+    );
   }
+  if (!isAuthenticated) return <LoginPage />;
+  return <>{children}</>;
+}
 
+function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*" element={
+          <ProtectedRoute>
+            <DataProvider>
+              <Layout />
+            </DataProvider>
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="inbox/:conversationId" element={<ConversationDetail />} />
           <Route path="requests" element={<Requests />} />
+          <Route path="customers" element={<CustomersPage />} />
           <Route path="services" element={<Services />} />
           <Route path="appointments" element={<Appointments />} />
           <Route path="automations" element={<Automations />} />
+          <Route path="webhook-tester" element={<WebhookTester />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>
-        <Route path="/landing" element={<LandingPage onLogin={() => setIsAuthenticated(true)} />} />
       </Routes>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

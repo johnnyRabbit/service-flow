@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Search, Filter, MoreHorizontal, Calendar, MapPin, User, Clock, AlertCircle } from 'lucide-react';
-import { mockRequests } from '../data/mockData';
+import { MapPin, User, Plus } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { Modal } from '../components/ui/Modal';
 import { RequestState } from '../types';
 
 const stateConfig: Record<RequestState, { label: string; color: string; bg: string }> = {
@@ -14,24 +15,55 @@ const stateConfig: Record<RequestState, { label: string; color: string; bg: stri
   CANCELLED: { label: 'Cancelado', color: 'text-red-700', bg: 'bg-red-100' },
 };
 
+const stateFlow: RequestState[] = ['NEW', 'REVIEWING', 'QUOTE_PENDING', 'QUOTED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'];
+
 export function Requests() {
+  const { requests, customers, services, updateRequest, createRequest } = useData();
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ customerId: '', serviceId: '', problem: '', address: '', urgency: 'NORMAL' as const });
 
-  const filtered = filter === 'ALL' ? mockRequests : mockRequests.filter(r => r.state === filter);
-  const selected = mockRequests.find(r => r.id === selectedRequest);
+  const filtered = filter === 'ALL' ? requests : requests.filter(r => r.state === filter);
+  const selected = requests.find(r => r.id === selectedRequest);
+
+  const handleStateChange = (id: string, newState: RequestState) => {
+    updateRequest(id, { state: newState });
+  };
+
+  const handleCreate = () => {
+    if (!createForm.customerId || !createForm.serviceId || !createForm.problem) return;
+    const req = createRequest({
+      customerId: createForm.customerId,
+      serviceId: createForm.serviceId,
+      state: 'NEW',
+      urgency: createForm.urgency as any,
+      problem: createForm.problem,
+      address: createForm.address,
+      data: {},
+      attachments: [],
+    });
+    setShowCreate(false);
+    setSelectedRequest(req.id);
+    setCreateForm({ customerId: '', serviceId: '', problem: '', address: '', urgency: 'NORMAL' });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pedidos</h1>
-          <p className="text-sm text-gray-500 mt-1">Pedidos criados pela IA e equipa</p>
+          <p className="text-sm text-gray-500 mt-1">{requests.length} pedidos • {requests.filter(r => r.state === 'NEW').length} novos</p>
         </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Pedido
+        </button>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {[
           { key: 'ALL', label: 'Todos' },
@@ -57,7 +89,6 @@ export function Requests() {
       </div>
 
       <div className="flex gap-6">
-        {/* List */}
         <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100">
             {filtered.map((req) => (
@@ -92,10 +123,12 @@ export function Requests() {
                 </div>
               </button>
             ))}
+            {filtered.length === 0 && (
+              <div className="p-12 text-center text-sm text-gray-500">Nenhum pedido encontrado</div>
+            )}
           </div>
         </div>
 
-        {/* Detail Panel */}
         {selected && (
           <div className="w-96 bg-white rounded-xl border border-gray-200 p-5 space-y-5 overflow-y-auto max-h-[calc(100vh-14rem)]">
             <div>
@@ -122,56 +155,136 @@ export function Requests() {
               <p className="text-sm text-gray-700">{selected.problem}</p>
             </div>
 
+            {Object.keys(selected.data).length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dados Recolhidos pela IA</h4>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  {Object.entries(selected.data).map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 capitalize">{key}</span>
+                      <span className="text-xs font-medium text-gray-900">
+                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Workflow */}
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dados Recolhidos pela IA</h4>
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                {Object.entries(selected.data).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500 capitalize">{key}</span>
-                    <span className="text-xs font-medium text-gray-900">
-                      {Array.isArray(value) ? value.join(', ') : String(value)}
-                    </span>
-                  </div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Workflow</h4>
+              <div className="flex flex-wrap gap-1">
+                {stateFlow.map((state) => (
+                  <button
+                    key={state}
+                    onClick={() => handleStateChange(selected.id, state)}
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                      selected.state === state
+                        ? `${stateConfig[state].bg} ${stateConfig[state].color} font-semibold`
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {stateConfig[state].label}
+                  </button>
                 ))}
               </div>
             </div>
 
-            {selected.scheduledDate && (
-              <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Agendamento</h4>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span>{selected.scheduledDate} às {selected.scheduledTime}</span>
-                </div>
-              </div>
-            )}
-
-            {selected.assignedUser && (
-              <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Atribuído a</h4>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold text-green-700">{selected.assignedUser.name.charAt(0)}</span>
-                  </div>
-                  <span className="text-sm text-gray-900">{selected.assignedUser.name}</span>
-                </div>
-              </div>
-            )}
-
             <div className="pt-3 border-t border-gray-200 space-y-2">
-              <button className="w-full px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
-                Atualizar Estado
+              <button
+                onClick={() => handleStateChange(selected.id, selected.state === 'COMPLETED' ? 'NEW' : 'COMPLETED')}
+                className="w-full px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+              >
+                {selected.state === 'COMPLETED' ? 'Reabrir' : 'Marcar como Concluído'}
               </button>
-              <button className="w-full px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-                Enviar Orçamento
-              </button>
-              <button className="w-full px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-                Agendar Visita
+              <button
+                onClick={() => handleStateChange(selected.id, 'CANCELLED')}
+                className="w-full px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+              >
+                Cancelar Pedido
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Create Modal */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Novo Pedido" description="Criar manualmente um pedido de serviço">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-700 mb-1 block">Cliente *</label>
+            <select
+              value={createForm.customerId}
+              onChange={(e) => setCreateForm({ ...createForm, customerId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Selecionar cliente...</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 mb-1 block">Serviço *</label>
+            <select
+              value={createForm.serviceId}
+              onChange={(e) => setCreateForm({ ...createForm, serviceId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Selecionar serviço...</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 mb-1 block">Problema *</label>
+            <textarea
+              value={createForm.problem}
+              onChange={(e) => setCreateForm({ ...createForm, problem: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Descreva o problema..."
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 mb-1 block">Morada</label>
+            <input
+              type="text"
+              value={createForm.address}
+              onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Morada do serviço"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 mb-1 block">Urgência</label>
+            <select
+              value={createForm.urgency}
+              onChange={(e) => setCreateForm({ ...createForm, urgency: e.target.value as any })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="LOW">Baixa</option>
+              <option value="NORMAL">Normal</option>
+              <option value="HIGH">Alta</option>
+              <option value="URGENT">Urgente</option>
+            </select>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleCreate}
+              disabled={!createForm.customerId || !createForm.serviceId || !createForm.problem}
+              className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+            >
+              Criar Pedido
+            </button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
