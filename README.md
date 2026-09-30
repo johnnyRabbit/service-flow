@@ -326,7 +326,7 @@ Arquitetura **modular dentro do monólito**.
 |---|---|---|
 | **1** | Monorepo, auth, organizations, database | ✅ Implementado (simulado no frontend) |
 | **2** | Customers, services, requests | ✅ Implementado (CRUD completo) |
-| **3** | Conversations, messages, inbox | ✅ Implementado |
+| **3** | Conversations, messages, inbox | ✅ Implementado (tempo real + webhook) |
 | **4** | AI providers, structured output, tools | ✅ Implementado (simulador) |
 | **5** | Human handoff | ✅ Implementado |
 | **6** | WhatsApp | ✅ Implementado (testador de webhook) |
@@ -378,6 +378,43 @@ Arquitetura **modular dentro do monólito**.
 **Riscos:**
 - Sem paginação (em produção: cursor-based pagination)
 - Sem validação de permissões RBAC nas operações
+
+#### Fase 3 — Conversations, Messages, Inbox
+
+**Implementado:**
+
+*Messaging em tempo real:*
+- ✅ **Simulador de Webhook WhatsApp** — botão "Simular mensagem" na Inbox dispara uma mensagem de cliente aleatória em tempo real
+- ✅ **Simulação contínua** — botão "Iniciar simulação" dispara mensagens a cada 8-15 segundos
+- ✅ **Feed de Webhook Events** — barra superior na Inbox mostra eventos em tempo real (incoming, AI response, handoff, request created)
+- ✅ **Indicador de digitação** animado enquanto a IA está a processar (`TypingIndicator` component)
+- ✅ **Notificações toast** para cada evento (incoming, handoff, pedido criado)
+
+*Inbox avançada:*
+- ✅ **Filtros avançados** — por canal (WhatsApp/Email/Web), prioridade (Alta/Normal/Baixa) e estado
+- ✅ **Ações em lote** — selecionar múltiplas conversas com checkboxes + bulk takeover/close
+- ✅ **Indicador SLA** — mostra tempo desde última mensagem (>30min em laranja)
+- ✅ **Dot de estado** no avatar para indicar estado atual da conversa
+- ✅ **Pesquisa** por nome de cliente ou conteúdo da mensagem
+
+*ConversationDetail rico:*
+- ✅ **Anexos** — simular envio de fotos, documentos e áudio (com preview e remoção)
+- ✅ **Notas internas** — painel lateral dedicado com notas privadas (não visíveis para o cliente)
+- ✅ **Templates de resposta rápida** — 10 templates pré-definidos (saudação, preços, agendamento, etc.)
+- ✅ **Transferência entre agentes** — dropdown para reatribuir conversa a outro agente
+- ✅ **Estatísticas da conversa** — total de mensagens, mensagens do cliente vs IA, duração, canal, performance IA
+- ✅ **Painel com 3 abas** — Contexto (cliente + IA + transferência + ações), Notas, Stats
+
+**Decisões:**
+- `useWebhookSimulator` hook encapsula toda a lógica de simulação (mensagens, IA, handoffs, pedidos)
+- Separação entre mensagens do cliente, IA, utilizador e sistema para clareza visual
+- Notas internas armazenadas localmente no componente (em produção: tabela `InternalNote` na DB)
+- Quick replies como dados estáticos (`quickReplies.ts`) para fácil extensão
+
+**Riscos:**
+- Simulação usa `setInterval` (em produção: WebSocket/SSE para tempo real)
+- Notas não persistem entre refresh (em produção: tabela dedicada)
+- Sem rate limiting na simulação (em produção: Redis + BullMQ)
 
 ---
 
