@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Snowflake, Loader2, AlertCircle } from 'lucide-react';
 
 export function LoginPage() {
   const { login, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('admin@climatech.pt');
   const [password, setPassword] = useState('demo123');
   const [error, setError] = useState('');
@@ -12,7 +14,9 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     const result = await login(email, password);
-    if (!result.success) {
+    if (result.success) {
+      navigate('/dashboard', { replace: true });
+    } else {
       setError(result.error || 'Erro ao iniciar sessão');
     }
   };

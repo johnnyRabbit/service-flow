@@ -41,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     await new Promise((r) => setTimeout(r, 800));
 
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Demo accounts
     const demoAccounts: Record<string, AuthUser> = {
       'admin@climatech.pt': {
@@ -59,19 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     };
 
-    if (demoAccounts[email] && password === 'demo123') {
-      setUser(demoAccounts[email]);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(demoAccounts[email]));
+    if (demoAccounts[normalizedEmail] && password === 'demo123') {
+      setUser(demoAccounts[normalizedEmail]);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(demoAccounts[normalizedEmail]));
       setIsLoading(false);
       return { success: true };
     }
 
     // Any other email works with password 'demo123' (simulates signup)
-    if (password === 'demo123' && email.includes('@')) {
+    if (password === 'demo123' && normalizedEmail.includes('@')) {
       const newUser: AuthUser = {
         id: 'user_' + Math.random().toString(36).slice(2, 8),
-        email,
-        name: email.split('@')[0],
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0],
         role: 'OWNER',
         organizationId: 'org_' + Math.random().toString(36).slice(2, 8),
       };
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setIsLoading(false);
     localStorage.removeItem(STORAGE_KEY);
   };
 
