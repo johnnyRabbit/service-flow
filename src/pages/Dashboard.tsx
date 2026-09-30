@@ -1,9 +1,9 @@
 import { 
   MessageSquare, ClipboardList, Bot, UserCheck, Calendar, 
-  TrendingUp, Clock, Star, ArrowUpRight, ArrowDownRight
+  TrendingUp, Clock, Star, ArrowUpRight, Users
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { mockMetrics, mockRequests, mockConversations } from '../data/mockData';
+import { useData } from '../contexts/DataContext';
 
 const weeklyData = [
   { day: 'Seg', conversations: 8, requests: 5 },
@@ -23,11 +23,15 @@ const hourlyData = [
 ];
 
 export function Dashboard() {
-  const metrics = mockMetrics;
+  const { conversations, requests, appointments, customers } = useData();
+
+  const activeConversations = conversations.filter(c => c.state !== 'CLOSED').length;
+  const requestsByAI = requests.length; // All created by AI in demo
+  const humanHandoffs = conversations.filter(c => c.humanTakeover).length;
+  const todayAppts = appointments.filter(a => a.date === '2024-12-20').length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -42,79 +46,48 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          icon={MessageSquare}
-          label="Conversas Ativas"
-          value={metrics.activeConversations}
-          total={`de ${metrics.totalConversations} totais`}
-          trend={12}
-          color="blue"
-        />
-        <MetricCard
-          icon={ClipboardList}
-          label="Pedidos"
-          value={metrics.totalRequests}
-          total={`${metrics.requestsByAI} pela IA`}
-          trend={8}
-          color="green"
-        />
-        <MetricCard
-          icon={Calendar}
-          label="Marcações Hoje"
-          value={metrics.appointmentsToday}
-          total="2 confirmadas"
-          trend={0}
-          color="purple"
-        />
-        <MetricCard
-          icon={Clock}
-          label="Tempo Poupadо"
-          value={`${metrics.estimatedTimeSaved}h`}
-          total="esta semana"
-          trend={23}
-          color="orange"
-        />
+        <MetricCard icon={MessageSquare} label="Conversas Ativas" value={activeConversations} total={`de ${conversations.length} totais`} trend={12} color="blue" />
+        <MetricCard icon={ClipboardList} label="Pedidos" value={requests.length} total={`${requestsByAI} pela IA`} trend={8} color="green" />
+        <MetricCard icon={Calendar} label="Marcações Hoje" value={todayAppts} total={`${appointments.filter(a => a.state === 'CONFIRMED').length} confirmadas`} trend={0} color="purple" />
+        <MetricCard icon={Clock} label="Tempo Poupadо" value="14.5h" total="esta semana" trend={23} color="orange" />
       </div>
 
-      {/* Secondary Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="w-4 h-4 text-primary-500" />
             <span className="text-xs font-medium text-gray-500">Pedidos IA</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{metrics.requestsByAI}</p>
-          <p className="text-xs text-green-600 mt-1">78% do total</p>
+          <p className="text-2xl font-bold text-gray-900">{requestsByAI}</p>
+          <p className="text-xs text-green-600 mt-1">{requests.length > 0 ? Math.round((requestsByAI / requests.length) * 100) : 0}% do total</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <UserCheck className="w-4 h-4 text-warning-500" />
             <span className="text-xs font-medium text-gray-500">Human Handoffs</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{metrics.humanHandoffs}</p>
-          <p className="text-xs text-gray-500 mt-1">21% necessitaram humano</p>
+          <p className="text-2xl font-bold text-gray-900">{humanHandoffs}</p>
+          <p className="text-xs text-gray-500 mt-1">{conversations.length > 0 ? Math.round((humanHandoffs / conversations.length) * 100) : 0}% necessitaram humano</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium text-gray-500">Leads</span>
+            <Users className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-medium text-gray-500">Clientes</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{metrics.leads}</p>
-          <p className="text-xs text-green-600 mt-1">+3 vs semana anterior</p>
+          <p className="text-2xl font-bold text-gray-900">{customers.length}</p>
+          <p className="text-xs text-green-600 mt-1">na base de dados</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-4 h-4 text-yellow-500" />
             <span className="text-xs font-medium text-gray-500">Satisfação</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{metrics.customerSatisfaction}/5</p>
+          <p className="text-2xl font-bold text-gray-900">4.7/5</p>
           <p className="text-xs text-green-600 mt-1">+0.2 vs mês anterior</p>
         </div>
       </div>
 
-      {/* Charts */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Conversas & Pedidos (7 dias)</h3>
@@ -143,7 +116,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Activity */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -151,7 +123,7 @@ export function Dashboard() {
             <a href="/requests" className="text-xs text-primary-600 hover:underline">Ver todos</a>
           </div>
           <div className="space-y-3">
-            {mockRequests.slice(0, 4).map((req) => (
+            {requests.slice(0, 4).map((req) => (
               <div key={req.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
                 <div className={`w-2 h-2 rounded-full ${
                   req.state === 'NEW' ? 'bg-blue-500' :
@@ -173,6 +145,7 @@ export function Dashboard() {
                 </span>
               </div>
             ))}
+            {requests.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Sem pedidos ainda</p>}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -181,7 +154,7 @@ export function Dashboard() {
             <a href="/inbox" className="text-xs text-primary-600 hover:underline">Ver todas</a>
           </div>
           <div className="space-y-3">
-            {mockConversations.filter(c => c.state !== 'CLOSED').slice(0, 4).map((conv) => (
+            {conversations.filter(c => c.state !== 'CLOSED').slice(0, 4).map((conv) => (
               <div key={conv.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                   conv.state === 'AI_ACTIVE' ? 'bg-primary-100 text-primary-700' :
@@ -204,6 +177,7 @@ export function Dashboard() {
                 </div>
               </div>
             ))}
+            {activeConversations === 0 && <p className="text-sm text-gray-500 text-center py-4">Sem conversas ativas</p>}
           </div>
         </div>
       </div>
@@ -236,12 +210,6 @@ function MetricCard({ icon: Icon, label, value, total, trend, color }: {
           <div className="flex items-center gap-1 text-green-600">
             <ArrowUpRight className="w-3 h-3" />
             <span className="text-xs font-medium">{trend}%</span>
-          </div>
-        )}
-        {trend < 0 && (
-          <div className="flex items-center gap-1 text-red-600">
-            <ArrowDownRight className="w-3 h-3" />
-            <span className="text-xs font-medium">{Math.abs(trend)}%</span>
           </div>
         )}
       </div>

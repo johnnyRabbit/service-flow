@@ -1,16 +1,19 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, MessageSquare, ClipboardList, Wrench, Calendar, 
-  Zap, Shield, Settings, LogOut, Snowflake, Bell
+  Zap, Shield, Settings, LogOut, Snowflake, Bell, Users, Radio
 } from 'lucide-react';
-import { mockOrganization } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Inbox', href: '/inbox', icon: MessageSquare },
   { name: 'Pedidos', href: '/requests', icon: ClipboardList },
+  { name: 'Clientes', href: '/customers', icon: Users },
   { name: 'Serviços', href: '/services', icon: Wrench },
   { name: 'Marcações', href: '/appointments', icon: Calendar },
+  { name: 'Teste Webhook', href: '/webhook-tester', icon: Radio },
   { name: 'Automações', href: '/automations', icon: Zap },
   { name: 'Audit Log', href: '/audit', icon: Shield },
   { name: 'Definições', href: '/settings', icon: Settings },
@@ -18,6 +21,16 @@ const navigation = [
 
 export function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { organization, conversations } = useData();
+
+  const unreadTotal = conversations.filter(c => c.state !== 'CLOSED').reduce((sum, c) => sum + c.unreadCount, 0);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -30,14 +43,14 @@ export function Layout() {
               <Snowflake className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-sm">{mockOrganization.name}</h1>
+              <h1 className="font-bold text-gray-900 text-sm">{organization.name}</h1>
               <p className="text-xs text-gray-500">ServiceFlow AI</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || 
               (item.href === '/inbox' && location.pathname.startsWith('/inbox/'));
@@ -53,8 +66,8 @@ export function Layout() {
               >
                 <item.icon className={`w-4.5 h-4.5 ${isActive ? 'text-primary-600' : 'text-gray-400'}`} />
                 {item.name}
-                {item.name === 'Inbox' && (
-                  <span className="ml-auto bg-danger-500 text-white text-xs px-1.5 py-0.5 rounded-full">3</span>
+                {item.name === 'Inbox' && unreadTotal > 0 && (
+                  <span className="ml-auto bg-danger-500 text-white text-xs px-1.5 py-0.5 rounded-full">{unreadTotal}</span>
                 )}
               </NavLink>
             );
@@ -65,13 +78,15 @@ export function Layout() {
         <div className="p-3 border-t border-gray-200">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-primary-700 text-xs font-bold">AT</span>
+              <span className="text-primary-700 text-xs font-bold">
+                {user?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Admin</p>
-              <p className="text-xs text-gray-500 truncate">admin@climatech.pt</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.role}</p>
             </div>
-            <button className="text-gray-400 hover:text-gray-600">
+            <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600" title="Sair">
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -94,13 +109,13 @@ export function Layout() {
             </button>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-medium text-green-700">IA Ativa</span>
+              <span className="text-xs font-medium text-green-700">IA Ativa • Nível {organization.autonomyLevel}</span>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <Outlet />
         </main>
       </div>

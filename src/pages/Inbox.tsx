@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Bot, User, AlertTriangle, Clock } from 'lucide-react';
-import { mockConversations } from '../data/mockData';
+import { Search, AlertTriangle } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 import { ConversationState, Channel } from '../types';
 
 const stateLabels: Record<ConversationState, { label: string; color: string }> = {
@@ -20,46 +20,43 @@ const channelIcons: Record<Channel, string> = {
 
 export function Inbox() {
   const navigate = useNavigate();
+  const { conversations } = useData();
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
-  const filtered = mockConversations.filter(conv => {
+  const filtered = conversations.filter(conv => {
     if (filter !== 'ALL' && conv.state !== filter) return false;
     if (search && !conv.customer.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   const counts = {
-    ALL: mockConversations.length,
-    AI_ACTIVE: mockConversations.filter(c => c.state === 'AI_ACTIVE').length,
-    NEEDS_HUMAN: mockConversations.filter(c => c.state === 'NEEDS_HUMAN').length,
-    HUMAN_ACTIVE: mockConversations.filter(c => c.state === 'HUMAN_ACTIVE').length,
-    WAITING_CUSTOMER: mockConversations.filter(c => c.state === 'WAITING_CUSTOMER').length,
+    ALL: conversations.length,
+    AI_ACTIVE: conversations.filter(c => c.state === 'AI_ACTIVE').length,
+    NEEDS_HUMAN: conversations.filter(c => c.state === 'NEEDS_HUMAN').length,
+    HUMAN_ACTIVE: conversations.filter(c => c.state === 'HUMAN_ACTIVE').length,
+    WAITING_CUSTOMER: conversations.filter(c => c.state === 'WAITING_CUSTOMER').length,
   };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inbox</h1>
-          <p className="text-sm text-gray-500 mt-1">Gerir conversas e atendimento</p>
+          <p className="text-sm text-gray-500 mt-1">{conversations.filter(c => c.state !== 'CLOSED').length} conversas ativas</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Pesquisar cliente..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Pesquisar cliente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {[
           { key: 'ALL', label: 'Todas' },
@@ -82,7 +79,6 @@ export function Inbox() {
         ))}
       </div>
 
-      {/* Conversation List */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
@@ -96,7 +92,6 @@ export function Inbox() {
                 onClick={() => navigate(`/inbox/${conv.id}`)}
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors text-left"
               >
-                {/* Avatar */}
                 <div className="relative">
                   <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${
                     conv.state === 'NEEDS_HUMAN' ? 'bg-red-100 text-red-700' :
@@ -113,7 +108,6 @@ export function Inbox() {
                   )}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-semibold text-gray-900">{conv.customer.name}</span>
@@ -125,7 +119,6 @@ export function Inbox() {
                   <p className="text-sm text-gray-600 truncate">{conv.lastMessage}</p>
                 </div>
 
-                {/* Right side */}
                 <div className="flex flex-col items-end gap-2">
                   <span className="text-xs text-gray-400">
                     {new Date(conv.lastMessageAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
