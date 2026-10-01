@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Zap, Plus, Play, Pause, Edit, Trash2, Clock, ArrowRight, MessageSquare, Mail, Bell, UserCheck, ClipboardList } from 'lucide-react';
+import { Zap, Plus, Play, Pause, Edit, Trash2, Clock, ArrowRight, MessageSquare, Mail, Bell, UserCheck, ClipboardList, CheckCircle, XCircle, Activity } from 'lucide-react';
+import { useAutomation } from '../contexts/AutomationContext';
+import { useToast } from '../contexts/ToastContext';
 
 const mockAutomations = [
   {
@@ -77,11 +79,33 @@ const actionIcons: Record<string, any> = {
 };
 
 export function Automations() {
+  const { executions, addExecution, clearExecutions, totalExecutions, successRate, avgDuration } = useAutomation();
+  const { addToast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
+
+  const simulateExecution = (automation: typeof mockAutomations[0]) => {
+    const duration = 50 + Math.random() * 200;
+    const success = Math.random() > 0.1; // 90% success rate
+    
+    addExecution({
+      automationId: automation.id,
+      automationName: automation.name,
+      trigger: automation.trigger,
+      status: success ? 'SUCCESS' : 'FAILED',
+      duration,
+      result: success ? 'Execução concluída com sucesso' : undefined,
+      error: success ? undefined : 'Timeout ao enviar mensagem',
+    });
+
+    addToast({
+      type: success ? 'success' : 'error',
+      title: success ? '✓ Automação executada' : '✗ Falha na execução',
+      message: automation.name,
+    });
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Automações</h1>
@@ -97,18 +121,34 @@ export function Automations() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-gray-500 mb-1">Regras Ativas</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-primary-500" />
+            <span className="text-xs font-medium text-gray-500">Regras Ativas</span>
+          </div>
           <p className="text-2xl font-bold text-gray-900">{mockAutomations.filter(a => a.enabled).length}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-gray-500 mb-1">Execuções Hoje</p>
-          <p className="text-2xl font-bold text-gray-900">12</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-4 h-4 text-blue-500" />
+            <span className="text-xs font-medium text-gray-500">Execuções</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{totalExecutions}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-gray-500 mb-1">Tempo Poupadо</p>
-          <p className="text-2xl font-bold text-gray-900">3.2h</p>
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-medium text-gray-500">Taxa Sucesso</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{Math.round(successRate)}%</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs font-medium text-gray-500">Duração Média</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{Math.round(avgDuration)}ms</p>
         </div>
       </div>
 
@@ -165,6 +205,14 @@ export function Automations() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => simulateExecution(auto)}
+                  disabled={!auto.enabled}
+                  className="p-1.5 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Simular execução"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                </button>
                 <button className={`p-1.5 rounded-lg ${auto.enabled ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
                   {auto.enabled ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
                 </button>
@@ -213,6 +261,55 @@ export function Automations() {
           </div>
         ))}
       </div>
+
+      {/* Execution Logs */}
+      {executions.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary-500" />
+              Logs de Execução
+            </h3>
+            <button
+              onClick={clearExecutions}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Limpar
+            </button>
+          </div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {executions.map((exec) => (
+              <div key={exec.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  exec.status === 'SUCCESS' ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {exec.status === 'SUCCESS' ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-red-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{exec.automationName}</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(exec.executedAt).toLocaleString('pt-PT')} • {exec.duration}ms
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-medium ${
+                    exec.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {exec.status}
+                  </p>
+                  {exec.error && (
+                    <p className="text-xs text-red-500">{exec.error}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

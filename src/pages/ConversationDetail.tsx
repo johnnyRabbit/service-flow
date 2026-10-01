@@ -7,7 +7,10 @@ import {
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAI } from '../contexts/AIContext';
+import { useHandoff } from '../contexts/HandoffContext';
 import { processMessage } from '../lib/ai-simulator';
+import { aiEngine } from '../lib/ai-engine';
 import { TypingIndicator } from '../components/ui/TypingIndicator';
 import { quickReplies } from '../data/quickReplies';
 
@@ -23,6 +26,8 @@ export function ConversationDetail() {
   const navigate = useNavigate();
   const { conversations, services, addMessage, updateConversationState, createRequest } = useData();
   const { addToast } = useToast();
+  const { addMetric } = useAI();
+  const { requestHandoff } = useHandoff();
   const [newMessage, setNewMessage] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [lastIntent, setLastIntent] = useState<any>(null);
@@ -99,7 +104,28 @@ export function ConversationDetail() {
     // If AI is active, simulate AI response
     if ((conversation.state === 'AI_ACTIVE' || conversation.state === 'WAITING_CUSTOMER') && msgText) {
       setIsAiProcessing(true);
-      const intent = await processMessage(msgText, services[0]);
+      
+      // Use new AI engine
+      const aiResponse = await aiEngine.process(msgText, {
+        customerId: conversation.customerId,
+        customerName: conversation.customer.name,
+        service: services[0],
+        conversationHistory: conversation.messages.map(m => ({
+          role: m.senderType === 'CUSTOMER' ? 'user' as const : 'assistant' as const,
+          content: m.content,
+        })),
+      });
+      
+      // Record metric
+      addMetric({
+        conversationId: conversation.id,
+        customerName: conversation.customer.name,
+        inputMessage: msgText,
+        response: aiResponse,
+        status: 'success',
+      });
+      
+      const intent = aiResponse.intent;
       setLastIntent(intent);
       
       // Simulate typing delay
@@ -117,6 +143,21 @@ export function ConversationDetail() {
           senderType: 'SYSTEM',
           senderName: 'Sistema',
           content: `⚠️ ${intent.triggerRule}`,
+        });
+        
+        // Create handoff request
+        requestHandoff(
+          conversation.id,
+          conversation.customer.name,
+          intent.triggerRule || 'Requer intervenção humana',
+          intent.urgency === 'URGENT' ? 'CRITICAL' : intent.urgency === 'HIGH' ? 'HIGH' : 'NORMAL',
+          `IA detetou: ${intent.intent}. Confiança: ${Math.round(intent.confidence * 100)}%. Campos extraídos: ${Object.keys(intent.extractedFields).join(', ') || 'nenhum'}.`
+        );
+        
+        addToast({
+          type: 'warning',
+          title: '🚨 Handoff solicitado',
+          message: 'Conversa encaminhada para supervisão',
         });
       }
       

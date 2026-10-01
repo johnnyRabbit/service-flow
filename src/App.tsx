@@ -13,9 +13,15 @@ import { Settings } from './pages/Settings';
 import { AuditLogs } from './pages/AuditLogs';
 import { CustomersPage } from './pages/CustomersPage';
 import { WebhookTester } from './pages/WebhookTester';
+import { AIConsole } from './pages/AIConsole';
+import { HandoffSupervisor } from './pages/HandoffSupervisor';
+import { WhatsAppIntegration } from './pages/WhatsAppIntegration';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { DataProvider } from './contexts/DataContext';
+import { AIProvider } from './contexts/AIContext';
+import { HandoffProvider } from './contexts/HandoffContext';
+import { AutomationProvider } from './contexts/AutomationContext';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +64,9 @@ function AppRoutes() {
           <Route path="appointments" element={<Appointments />} />
           <Route path="automations" element={<Automations />} />
           <Route path="webhook-tester" element={<WebhookTester />} />
+          <Route path="ai-console" element={<AIConsole />} />
+          <Route path="handoffs" element={<HandoffSupervisor />} />
+          <Route path="whatsapp" element={<WhatsAppIntegration />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>
@@ -70,7 +79,11 @@ function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <AppRoutes />
+        <AIProvider>
+          <HandoffProvider>
+            <AppRoutes />
+          </HandoffProvider>
+        </AIProvider>
       </AuthProvider>
     </ToastProvider>
   );

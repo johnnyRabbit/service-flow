@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, MessageSquare, ClipboardList, Wrench, Calendar, 
-  Zap, Shield, Settings, LogOut, Snowflake, Bell, Users, Radio
+  Zap, Shield, Settings, LogOut, Snowflake, Bell, Users, Radio, Activity, Phone
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -14,6 +14,9 @@ const navigation = [
   { name: 'Serviços', href: '/services', icon: Wrench },
   { name: 'Marcações', href: '/appointments', icon: Calendar },
   { name: 'Teste Webhook', href: '/webhook-tester', icon: Radio },
+  { name: 'WhatsApp', href: '/whatsapp', icon: Phone },
+  { name: 'AI Console', href: '/ai-console', icon: Activity },
+  { name: 'Handoffs', href: '/handoffs', icon: Users },
   { name: 'Automações', href: '/automations', icon: Zap },
   { name: 'Audit Log', href: '/audit', icon: Shield },
   { name: 'Definições', href: '/settings', icon: Settings },

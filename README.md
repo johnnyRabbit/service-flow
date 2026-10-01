@@ -327,10 +327,10 @@ Arquitetura **modular dentro do monólito**.
 | **1** | Monorepo, auth, organizations, database | ✅ Implementado (simulado no frontend) |
 | **2** | Customers, services, requests | ✅ Implementado (CRUD completo) |
 | **3** | Conversations, messages, inbox | ✅ Implementado (tempo real + webhook) |
-| **4** | AI providers, structured output, tools | ✅ Implementado (simulador) |
-| **5** | Human handoff | ✅ Implementado |
-| **6** | WhatsApp | ✅ Implementado (testador de webhook) |
-| **7** | Appointments | ✅ Implementado |
+| **4** | AI providers, structured output, tools | ✅ Implementado (engine completa + console) |
+| **5** | Human handoff | ✅ Implementado (queue + supervisão + níveis) |
+| **6** | WhatsApp | ✅ Implementado (configuração + status + eventos) |
+| **7** | Appointments | ✅ Implementado (criação + calendário + lista) |
 | **8** | BullMQ automations | ✅ Implementado (UI) |
 | **9** | Dashboard | ✅ Implementado |
 | **10** | Hardening, tests, logging | 🔜 Próxima fase |
@@ -415,6 +415,264 @@ Arquitetura **modular dentro do monólito**.
 - Simulação usa `setInterval` (em produção: WebSocket/SSE para tempo real)
 - Notas não persistem entre refresh (em produção: tabela dedicada)
 - Sem rate limiting na simulação (em produção: Redis + BullMQ)
+
+#### Fase 4 — AI Providers, Structured Output, Tools
+
+**Implementado:**
+
+*Motor de IA completo:*
+- ✅ **Abstração `AIProvider`** — interface para trocar entre Groq, OpenAI ou outros providers
+- ✅ **`MockAIProvider`** — implementação simulada compatível com Groq
+- ✅ **Validação com Zod** — schemas para `IntentSchema`, `ToolCallSchema`, `AIResponseSchema`
+- ✅ **Structured Output** — outputs sempre validados e tipados
+- ✅ **Sistema de Tools (Function Calling)** — IA pode invocar ferramentas controladas:
+  - `getServiceDetails` — obter detalhes de serviço
+  - `checkAvailability` — verificar disponibilidade para agendamento
+  - `getCustomerInfo` — obter informação do cliente
+- ✅ **Cada tool valida** permissões, tenant, e regista em audit log
+- ✅ **Métricas em tempo real** — tempo de processamento, tokens usados, confiança, tool calls
+
+*AI Console (página dedicada):*
+- ✅ **Métricas agregadas** — total chamadas, tempo médio, confiança média, tool calls, handoffs
+- ✅ **Distribuição de intenções** — gráfico de barras com % por tipo de intenção
+- ✅ **Logs detalhados** — cada chamada à IA com:
+  - Input/Output
+  - Intent + confiança
+  - Tool calls executados (com parâmetros e resultados)
+  - Tempo de processamento e tokens
+  - Modelo utilizado
+- ✅ **Indicadores visuais** — handoffs, erros, sucesso
+- ✅ **Botão "Limpar Métricas"** — reset do estado
+
+*Integração com Inbox:*
+- ✅ ConversationDetail agora usa o `aiEngine` em vez do simulador antigo
+- ✅ Cada mensagem processada é registada no `AIContext`
+- ✅ Métricas acumulam em tempo real enquanto usas a app
+
+**Arquitetura:**
+```
+src/lib/
+├── ai-schemas.ts      # Zod schemas (Intent, ToolCall, AIResponse)
+├── ai-engine.ts       # AIProvider abstraction + MockAIProvider
+└── ai-simulator.ts    # (legado, mantido para compatibilidade)
+
+src/contexts/
+└── AIContext.tsx      # Métricas globais da IA
+
+src/pages/
+└── AIConsole.tsx      # Dashboard de monitorização da IA
+```
+
+**Fluxo:**
+```
+Mensagem do Cliente
+  ↓
+AI Engine (aiEngine.process)
+  ↓
+AIProvider.processMessage(message, context)
+  ↓
+├─ analyzeIntent() → IntentSchema (Zod validated)
+├─ executeTools() → ToolCall[] (cada tool validado)
+└─ AIResponse { intent, toolCalls, processingTime, tokens, model }
+  ↓
+AIContext.addMetric() → Métricas acumuladas
+  ↓
+UI: Mensagem + AI Console atualizados
+```
+
+**Decisões:**
+- Zod para validação rigorosa de outputs (em produção: previne alucinações)
+- Abstração `AIProvider` permite trocar de provider sem mudar código
+- Tools são executadas dentro do provider (não expostas ao LLM diretamente)
+- Métricas em memória (em produção: PostgreSQL + dashboard dedicado)
+
+**Riscos:**
+- Mock provider não reflete latência real de APIs externas
+- Sem fallback automático entre providers (em produção: circuit breaker)
+- Métricas em memória perdem-se ao refresh (em produção: persistência)
+
+#### Fase 5 — Human Handoff
+
+**Implementado:**
+
+*Sistema de Handoff completo:*
+- ✅ **`HandoffContext`** — gestão centralizada de pedidos de handoff
+- ✅ **3 Níveis de Autonomia** configuráveis em tempo real:
+  - **Nível 1 — Sugestão**: IA apenas sugere respostas, humano aprova tudo
+  - **Nível 2 — Semi-Autónomo** (padrão): IA responde FAQs e recolhe dados, ações importantes exigem aprovação
+  - **Nível 3 — Autónomo**: IA executa ações previamente autorizadas sem aprovação
+- ✅ **Queue de Handoffs** — pedidos pendentes com prioridade (LOW/NORMAL/HIGH/CRITICAL)
+- ✅ **Resumo automático da IA** — cada handoff inclui contexto gerado pela IA
+- ✅ **Ações de supervisão**:
+  - Aceitar e assumir conversa (navega para inbox)
+  - Rejeitar handoff
+  - Resolver handoff (após intervenção)
+- ✅ **Integração com ConversationDetail** — quando IA deteta `requiresHuman`, cria automaticamente pedido de handoff
+- ✅ **Notificações toast** — alerta visual quando handoff é criado
+
+*Página de Supervisão:*
+- ✅ **Controlo de Nível de Autonomia** — botões para alternar entre níveis 1/2/3
+- ✅ **Métricas em tempo real**:
+  - Pendentes
+  - Críticos
+  - Resolvidos
+  - Taxa de aceitação
+- ✅ **Lista de handoffs pendentes** com:
+  - Nome do cliente
+  - Urgência (badge colorido)
+  - Motivo do handoff
+  - Resumo da IA (contexto completo)
+  - Botões Aceitar/Rejeitar
+- ✅ **Handoffs recentes** — histórico com status e agente responsável
+
+**Arquitetura:**
+```
+src/contexts/
+└── HandoffContext.tsx    # Queue + níveis de autonomia
+
+src/pages/
+└── HandoffSupervisor.tsx # Página de supervisão
+```
+
+**Fluxo:**
+```
+Mensagem do Cliente
+  ↓
+AI Engine processa
+  ↓
+requiresHuman === true?
+  ↓ Sim
+HandoffContext.requestHandoff()
+  ↓
+Queue atualizada + Toast notificação
+  ↓
+Supervisor vê em /handoffs
+  ↓
+Aceita → Navega para /inbox/:conversationId
+  ↓
+Humano assume conversa (HUMAN_ACTIVE)
+```
+
+**Decisões:**
+- Níveis de autonomia configuráveis globalmente (em produção: por organização/serviço)
+- Handoffs com resumo automático da IA (reduz tempo de contexto do humano)
+- Queue ordenada por urgência (CRITICAL primeiro)
+- Integração bidirecional: ConversationDetail cria handoff, Supervisor aceita e navega
+
+**Riscos:**
+- Sem SLA automático (em produção: alertas se handoff não aceite em X minutos)
+- Sem rotação de agentes (em produção: round-robin ou load balancing)
+- Handoffs em memória perdem-se ao refresh (em produção: persistência)
+
+#### Fase 6 — WhatsApp
+
+**Implementado:**
+
+*Página de Integração WhatsApp completa:*
+- ✅ **Status de conexão** — indicador visual (conectado/desconectado) com botão de teste
+- ✅ **Configuração editável**:
+  - Webhook URL (com botão copiar)
+  - Verify Token (com botão copiar)
+  - Phone Number ID
+  - Business Account ID
+- ✅ **Métricas em tempo real**:
+  - Mensagens recebidas hoje
+  - Taxa de entrega
+  - Erros nas últimas 24h
+- ✅ **Webhook Events subscritos** — lista de eventos ativos/inativos:
+  - `messages` — receber mensagens de clientes
+  - `message_status` — status de entrega
+  - `message_template_status_update` — atualizações de templates
+- ✅ **Log de webhooks recentes** — histórico com:
+  - Timestamp
+  - Cliente
+  - Tipo de evento
+  - Status (sucesso/erro)
+- ✅ **Instruções de setup** — passo-a-passo para configurar no Meta for Developers
+- ✅ **Link para documentação oficial** da Meta
+
+*Integração com resto do sistema:*
+- ✅ Webhook Tester (já implementado na Fase 3) simula mensagens WhatsApp
+- ✅ AI Engine processa mensagens recebidas
+- ✅ Handoff automático quando necessário
+- ✅ Pedidos criados automaticamente pela IA
+
+**Arquitetura (produção):**
+```
+WhatsApp Cloud API
+  ↓ (webhook POST)
+NestJS Backend
+  ↓
+├─ Validar signature (HMAC-SHA256)
+├─ Verificar verify_token
+├─ Processar idempotente (dedup por message_id)
+├─ Localizar organization/customer/conversation
+├─ AI Engine processa
+├─ Tools executadas (se necessário)
+└─ Responder via WhatsApp API
+```
+
+**Decisões:**
+- Página de configuração editável (em produção: apenas leitura + botão "ir para Meta")
+- Webhook URL e Verify Token copiáveis para facilitar setup
+- Log de webhooks recentes para debugging
+- Instruções de setup integradas na UI
+
+**Riscos:**
+- Sem validação de signature HMAC (em produção: obrigatório)
+- Sem processamento idempotente (em produção: dedup por message_id)
+- Sem rate limiting específico para WhatsApp (em produção: Redis + BullMQ)
+- Sem retry logic (em produção: dead letter queue)
+
+#### Fase 7 — Appointments
+
+**Implementado:**
+
+*Página de Marcações melhorada:*
+- ✅ **Criação de marcações** — modal com:
+  - Seleção de cliente
+  - Seleção de serviço
+  - Data e hora
+  - Duração (minutos)
+  - Notas adicionais
+- ✅ **Vista Lista** — agrupada por dia (Hoje, Amanhã):
+  - Hora e duração
+  - Nome do cliente
+  - Serviço
+  - Estado (badge colorido)
+  - Morada
+  - Técnico atribuído
+  - Notas
+  - Botões Confirmar/Reagendar
+- ✅ **Vista Calendário** — grelha mensal com:
+  - Dias do mês
+  - Marcações visíveis em cada dia
+  - Destaque do dia atual
+- ✅ **Métricas em tempo real**:
+  - Marcações hoje
+  - Marcações amanhã
+  - Total da semana
+  - Taxa de confirmação
+- ✅ **Integração com DataContext** — criação persistida e refletida em todas as vistas
+- ✅ **Estados de marcação**:
+  - SCHEDULED (agendada)
+  - CONFIRMED (confirmada)
+  - IN_PROGRESS (em curso)
+  - COMPLETED (concluída)
+  - CANCELLED (cancelada)
+  - NO_SHOW (não compareceu)
+
+**Decisões:**
+- Vista lista como padrão (mais útil para operações diárias)
+- Calendário como vista alternativa (visão geral)
+- Modal de criação com validação de campos obrigatórios
+- Estados com cores distintas para fácil identificação
+
+**Riscos:**
+- Sem verificação de conflitos de agenda (em produção: verificar disponibilidade do técnico)
+- Sem integração com Google Calendar (preparado para futura integração)
+- Sem lembretes automáticos (em produção: BullMQ + WhatsApp)
+- Sem reagendamento automático (em produção: IA sugere alternativas)
 
 ---
 
