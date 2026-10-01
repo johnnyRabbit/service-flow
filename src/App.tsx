@@ -81,7 +81,9 @@ function App() {
       <AuthProvider>
         <AIProvider>
           <HandoffProvider>
-            <AppRoutes />
+            <AutomationProvider>
+              <AppRoutes />
+            </AutomationProvider>
           </HandoffProvider>
         </AIProvider>
       </AuthProvider>

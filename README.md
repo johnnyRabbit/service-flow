@@ -331,7 +331,7 @@ Arquitetura **modular dentro do monólito**.
 | **5** | Human handoff | ✅ Implementado (queue + supervisão + níveis) |
 | **6** | WhatsApp | ✅ Implementado (configuração + status + eventos) |
 | **7** | Appointments | ✅ Implementado (criação + calendário + lista) |
-| **8** | BullMQ automations | ✅ Implementado (UI) |
+| **8** | BullMQ automations | ✅ Implementado (execução simulada + logs + métricas) |
 | **9** | Dashboard | ✅ Implementado |
 | **10** | Hardening, tests, logging | 🔜 Próxima fase |
 
@@ -673,6 +673,67 @@ NestJS Backend
 - Sem integração com Google Calendar (preparado para futura integração)
 - Sem lembretes automáticos (em produção: BullMQ + WhatsApp)
 - Sem reagendamento automático (em produção: IA sugere alternativas)
+
+#### Fase 8 — BullMQ Automations
+
+**Implementado:**
+
+*Sistema de Automações completo:*
+- ✅ **Automações pré-configuradas** — 5 regras de exemplo:
+  - Follow-up após orçamento (48h)
+  - Lembrete de marcação (24h antes)
+  - Conversa inativa (2h sem resposta)
+  - Notificação de pedido urgente (imediato)
+  - Pedido de avaliação após conclusão (1h)
+- ✅ **Visualização de fluxo** — cada regra mostra:
+  - Trigger (azul)
+  - Condições (amarelo)
+  - Delay (cinza)
+  - Actions (verde)
+- ✅ **Simulação de execução** — botão Play para executar automação:
+  - Duração aleatória (50-250ms)
+  - Taxa de sucesso de 90%
+  - Logs registados automaticamente
+- ✅ **Métricas em tempo real**:
+  - Regras ativas
+  - Total de execuções
+  - Taxa de sucesso
+  - Duração média
+- ✅ **Logs de execução** — histórico com:
+  - Nome da automação
+  - Timestamp
+  - Duração
+  - Status (SUCCESS/FAILED)
+  - Mensagem de erro (se aplicável)
+- ✅ **Toggle enable/disable** — ativar/desativar regras
+- ✅ **Botão "Limpar"** — reset dos logs de execução
+
+**Arquitetura (produção):**
+```
+Trigger (evento do sistema)
+  ↓
+BullMQ Job criado
+  ↓
+Worker processa
+  ↓
+├─ Verificar condições
+├─ Aguardar delay (se necessário)
+├─ Executar actions
+└─ Registar resultado
+```
+
+**Decisões:**
+- Simulação em memória (em produção: Redis + BullMQ)
+- Logs mantidos em memória (últimos 100)
+- Taxa de sucesso simulada (90%)
+- Duração aleatória para simular latência real
+
+**Riscos:**
+- Sem persistência de jobs (em produção: Redis)
+- Sem retry logic (em produção: dead letter queue)
+- Sem priorização de jobs (em produção: prioridades BullMQ)
+- Sem rate limiting (em produção: Redis + limiter)
+- Sem monitorização de falhas (em produção: Sentry + alertas)
 
 ---
 
