@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { Modal } from '../components/ui/Modal';
+import { PermissionGuard } from '../components/ui/PermissionGuard';
 import { Customer } from '../types';
 
 export function CustomersPage() {
@@ -52,13 +53,15 @@ export function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
           <p className="text-sm text-gray-500 mt-1">{customers.length} clientes registados</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Cliente
-        </button>
+        <PermissionGuard permission="customers:create">
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Cliente
+          </button>
+        </PermissionGuard>
       </div>
 
       <div className="relative max-w-md">
@@ -112,12 +115,16 @@ export function CustomersPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(c)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <PermissionGuard permission="customers:update">
+                      <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
+                    <PermissionGuard permission="customers:delete">
+                      <button onClick={() => handleDelete(c)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </PermissionGuard>
                   </div>
                 </td>
               </tr>

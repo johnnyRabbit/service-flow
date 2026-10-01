@@ -16,6 +16,7 @@ import { WebhookTester } from './pages/WebhookTester';
 import { AIConsole } from './pages/AIConsole';
 import { HandoffSupervisor } from './pages/HandoffSupervisor';
 import { WhatsAppIntegration } from './pages/WhatsAppIntegration';
+import { TeamManagement } from './pages/TeamManagement';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { DataProvider } from './contexts/DataContext';
@@ -67,6 +68,7 @@ function AppRoutes() {
           <Route path="ai-console" element={<AIConsole />} />
           <Route path="handoffs" element={<HandoffSupervisor />} />
           <Route path="whatsapp" element={<WhatsAppIntegration />} />
+          <Route path="team" element={<TeamManagement />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>

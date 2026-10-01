@@ -248,14 +248,138 @@ Regista **toda** a atividade:
 ```
 
 ### 15. Segurança
-- RBAC (OWNER / ADMIN / TECHNICIAN / VIEWER)
-- Isolamento de tenant a nível de database
-- Validação com Zod
-- Rate limiting
-- Secrets management
-- Webhook validation (Meta)
-- Audit logs
-- Minimização de dados
+
+#### 15.1 RBAC (Role-Based Access Control)
+
+O sistema implementa um modelo de permissões granular com 5 papéis (roles):
+
+| Role | Descrição | Permissões |
+|------|-----------|------------|
+| **OWNER** 👑 | Proprietário da organização | Acesso total, incluindo billing e integrações |
+| **ADMIN** 🛡️ | Administrador | Acesso quase total, sem gestão de billing |
+| **MANAGER** 👔 | Gestor | Gere equipa e operações, sem poder eliminar dados críticos |
+| **TECHNICIAN** 🔧 | Técnico | Acede apenas a pedidos e marcações atribuídos |
+| **VIEWER** 👁️ | Visualizador | Apenas leitura, sem poder alterar dados |
+
+#### 15.2 Matriz de Permissões
+
+O sistema define **53 permissões** organizadas por módulo:
+
+**Dashboard**
+- `dashboard:view` — Ver dashboard
+
+**Inbox & Conversas**
+- `inbox:view_all` — Ver todas as conversas
+- `inbox:view_assigned` — Ver apenas conversas atribuídas
+- `inbox:respond` — Responder a conversas
+- `inbox:takeover` — Assumir conversa da IA
+- `inbox:close` — Fechar conversa
+- `inbox:transfer` — Transferir conversa
+
+**Pedidos**
+- `requests:view_all` — Ver todos os pedidos
+- `requests:view_assigned` — Ver apenas pedidos atribuídos
+- `requests:create` — Criar pedidos
+- `requests:update` — Atualizar pedidos
+- `requests:delete` — Eliminar pedidos
+- `requests:assign` — Atribuir pedidos
+
+**Clientes**
+- `customers:view_all` — Ver todos os clientes
+- `customers:create` — Criar clientes
+- `customers:update` — Atualizar clientes
+- `customers:delete` — Eliminar clientes
+
+**Serviços**
+- `services:view` — Ver serviços
+- `services:create` — Criar serviços
+- `services:update` — Atualizar serviços
+- `services:delete` — Eliminar serviços
+
+**Marcações**
+- `appointments:view_all` — Ver todas as marcações
+- `appointments:view_assigned` — Ver apenas marcações atribuídas
+- `appointments:create` — Criar marcações
+- `appointments:update` — Atualizar marcações
+- `appointments:delete` — Eliminar marcações
+- `appointments:assign` — Atribuir marcações
+
+**Automações**
+- `automations:view` — Ver automações
+- `automations:create` — Criar automações
+- `automations:update` — Atualizar automações
+- `automations:delete` — Eliminar automações
+
+**Equipa**
+- `team:view` — Ver membros da equipa
+- `team:invite` — Convidar novos membros
+- `team:update_roles` — Alterar roles de membros
+- `team:remove` — Remover membros
+
+**Definições**
+- `settings:view` — Ver definições
+- `settings:update_general` — Atualizar definições gerais
+- `settings:update_billing` — Atualizar billing (apenas OWNER)
+- `settings:update_integrations` — Atualizar integrações
+
+**Audit & Segurança**
+- `audit:view` — Ver audit logs
+- `audit:export` — Exportar audit logs
+
+**IA & Handoffs**
+- `ai:view_console` — Ver AI Console
+- `ai:configure_autonomy` — Configurar nível de autonomia da IA
+- `handoffs:view` — Ver handoffs pendentes
+- `handoffs:accept` — Aceitar handoffs
+- `handoffs:reject` — Rejeitar handoffs
+
+#### 15.3 Implementação Técnica
+
+**Ficheiros principais:**
+- `src/lib/permissions.ts` — Definição de roles, permissões e matriz
+- `src/hooks/usePermission.ts` — Hook para verificar permissões
+- `src/components/ui/PermissionGuard.tsx` — Componentes para proteger UI
+
+**Como usar:**
+
+```typescript
+// Hook para verificar permissões
+const { can, canAny, canAll } = usePermission();
+
+// Verificar uma permissão
+if (can('customers:create')) {
+  // Mostrar botão de criar
+}
+
+// Componente para proteger UI
+<PermissionGuard permission="customers:delete">
+  <button>Eliminar</button>
+</PermissionGuard>
+
+// Componente para proteger página inteira
+<RequirePermission permission="team:view">
+  <TeamManagement />
+</RequirePermission>
+```
+
+**Navegação dinâmica:**
+O menu lateral filtra automaticamente itens baseado nas permissões do utilizador. Utilizadores sem permissão `audit:view` não verão "Audit Log" no menu.
+
+#### 15.4 Isolamento de Tenant
+
+- Todas as queries incluem `organizationId`
+- Middleware valida permissões antes de cada operação
+- Audit log de todas as ações sensíveis
+- Dados de diferentes organizações nunca se misturam
+
+#### 15.5 Outras Medidas de Segurança
+
+- Validação com Zod em todos os inputs
+- Rate limiting por IP e por tenant
+- Secrets management (variáveis de ambiente)
+- Webhook validation com HMAC-SHA256 (Meta)
+- Minimização de dados (não guardar dados desnecessários)
+- Dados proibidos para IA (configurável por organização)
 
 #### Boas Práticas de Segurança
 
