@@ -257,6 +257,91 @@ Regista **toda** a atividade:
 - Audit logs
 - Minimização de dados
 
+#### Boas Práticas de Segurança
+
+**Gestão de Secrets:**
+- ✅ Nunca commitar `.env.local` ou `.env.production` para o Git
+- ✅ Usar `.env.example` como template (já incluído no `.gitignore`)
+- ✅ Rotação regular de chaves API (a cada 90 dias recomendado)
+- ✅ Usar secrets managers em produção (AWS Secrets Manager, Vercel Env, Railway Secrets)
+
+**Chaves Críticas:**
+- `SUPABASE_SERVICE_ROLE_KEY`: Nunca expor no frontend (apenas backend)
+- `OPENAI_API_KEY` / `GROQ_API_KEY`: Proteger contra uso não autorizado
+- `WHATSAPP_ACCESS_TOKEN`: Renovar periodicamente via Meta Business
+- `JWT_SECRET`: Mínimo 32 caracteres, gerado com `openssl rand -base64 32`
+
+**Webhook Validation:**
+- Meta WhatsApp envia signature no header `X-Hub-Signature-256`
+- Validar com HMAC-SHA256 usando `WHATSAPP_VERIFY_TOKEN`
+- Rejeitar requests sem signature válida
+
+**Rate Limiting:**
+- Configurar limites por IP e por tenant
+- Proteger endpoints públicos (login, webhook, signup)
+- Usar Redis para contadores distribuídos
+
+**Tenant Isolation:**
+- Todas queries incluem `organizationId`
+- Middleware valida permissões antes de cada operação
+- Audit log de todas as ações sensíveis
+
+#### Troubleshooting de Variáveis de Ambiente
+
+**Verificar se as variáveis estão carregadas:**
+```bash
+# No Node.js (backend)
+node -e "console.log(process.env.SUPABASE_URL)"
+
+# No Vite (frontend)
+# Adicionar temporariamente no código:
+console.log(import.meta.env.VITE_SUPABASE_URL)
+```
+
+**Erros Comuns:**
+
+1. **"Cannot find module 'dotenv'"**
+   - Solução: `npm install dotenv`
+
+2. **"Invalid API key" (Supabase/OpenAI/Groq)**
+   - Verificar se a chave está correta em `.env.local`
+   - Verificar se não há espaços extras
+   - Reiniciar o servidor após alterar `.env`
+
+3. **"Webhook verification failed"**
+   - Verificar se `WHATSAPP_VERIFY_TOKEN` coincide com o configurado no Meta
+   - Verificar se o endpoint está acessível publicamente
+
+4. **"CORS error" (frontend → backend)**
+   - Verificar se `FRONTEND_URL` está correta
+   - Configurar CORS no backend para aceitar o domínio do frontend
+
+5. **Variáveis não carregam após alterar `.env`**
+   - Reiniciar o servidor (`Ctrl+C` e `npm run dev`)
+   - Verificar se está a editar o ficheiro correto (`.env.local` para dev)
+
+**Script de Verificação:**
+Criar `scripts/check-env.js`:
+```javascript
+require('dotenv').config({ path: '.env.local' });
+
+const required = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'GROQ_API_KEY',
+  'JWT_SECRET',
+];
+
+const missing = required.filter(key => !process.env[key]);
+
+if (missing.length > 0) {
+  console.error('❌ Variáveis em falta:', missing.join(', '));
+  process.exit(1);
+} else {
+  console.log('✅ Todas as variáveis obrigatórias estão configuradas');
+}
+```
+
 ### 16. Clínicas (extensibilidade)
 Quando usado numa clínica, o sistema **limita-se** a:
 - Marcações e reagendamentos
@@ -764,6 +849,23 @@ Este repositório contém um **protótipo funcional do frontend** que demonstra 
 - Recharts (dashboard)
 - Lucide React (ícones)
 
+### Stack de Produção (Planeada)
+
+| Serviço | Provider | Link |
+|---------|----------|------|
+| **Database** | Supabase PostgreSQL | [supabase.com](https://supabase.com) |
+| **Auth** | Supabase Auth | [supabase.com/docs/guides/auth](https://supabase.com/docs/guides/auth) |
+| **Storage** | Supabase Storage | [supabase.com/docs/guides/storage](https://supabase.com/docs/guides/storage) |
+| **AI Primary** | Groq (Llama 3.1) | [console.groq.com](https://console.groq.com) |
+| **AI Fallback** | OpenAI GPT-4 | [platform.openai.com](https://platform.openai.com) |
+| **Messaging** | Meta WhatsApp Cloud API | [developers.facebook.com/docs/whatsapp](https://developers.facebook.com/docs/whatsapp) |
+| **Email** | Resend | [resend.com](https://resend.com) |
+| **Queue** | Upstash Redis + BullMQ | [upstash.com](https://upstash.com) |
+| **Monitoring** | Sentry | [sentry.io](https://sentry.io) |
+| **Analytics** | PostHog | [posthog.com](https://posthog.com) |
+| **Frontend Deploy** | Vercel | [vercel.com](https://vercel.com) |
+| **Backend Deploy** | Railway | [railway.app](https://railway.app) |
+
 ### Arquitetura do Protótipo
 
 ```
@@ -834,13 +936,162 @@ src/
 └── index.css                  # Tailwind + tema
 ```
 
+### Configuração de Variáveis de Ambiente
+
+1. Copiar `.env.example` para `.env.local`:
+```bash
+cp .env.example .env.local
+```
+
+2. Preencher as variáveis em `.env.local` com os valores reais dos serviços.
+
+3. Variáveis necessárias:
+   - **Supabase**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - **AI**: `GROQ_API_KEY`, `OPENAI_API_KEY`
+   - **WhatsApp**: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`
+   - **Email**: `RESEND_API_KEY`
+   - **Monitoring**: `SENTRY_DSN`
+   - **Analytics**: `POSTHOG_API_KEY`
+   - **Redis**: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+   - **Security**: `JWT_SECRET`, `WEBHOOK_SECRET`
+
+Ver `.env.example` para lista completa com comentários.
+
+#### Configuração Detalhada por Serviço
+
+**1. Supabase (Database + Auth + Storage)**
+- Criar conta em [supabase.com](https://supabase.com)
+- Criar novo projeto
+- Ir a Settings → API
+- Copiar `Project URL`, `anon public key` e `service_role key`
+- Configurar em `.env.local`:
+  ```
+  SUPABASE_URL=https://your-project.supabase.co
+  SUPABASE_ANON_KEY=your-anon-key
+  SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+  ```
+
+**2. Groq (AI Primary)**
+- Criar conta em [console.groq.com](https://console.groq.com)
+- Ir a API Keys
+- Criar nova API key
+- Configurar em `.env.local`:
+  ```
+  GROQ_API_KEY=your-groq-api-key
+  ```
+
+**3. OpenAI (AI Fallback)**
+- Criar conta em [platform.openai.com](https://platform.openai.com)
+- Ir a API keys
+- Criar nova secret key
+- Configurar em `.env.local`:
+  ```
+  OPENAI_API_KEY=your-openai-api-key
+  ```
+
+**4. Meta WhatsApp Cloud API**
+- Criar app em [developers.facebook.com](https://developers.facebook.com)
+- Adicionar produto "WhatsApp"
+- Ir a WhatsApp → API Setup
+- Copiar `Phone number ID`, `Business Account ID` e `Permanent access token`
+- Configurar Webhook URL e Verify Token
+- Configurar em `.env.local`:
+  ```
+  WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id
+  WHATSAPP_BUSINESS_ACCOUNT_ID=your-business-account-id
+  WHATSAPP_ACCESS_TOKEN=your-access-token
+  WHATSAPP_VERIFY_TOKEN=your-webhook-verify-token
+  ```
+
+**5. Resend (Email)**
+- Criar conta em [resend.com](https://resend.com)
+- Ir a API Keys
+- Criar nova API key
+- Configurar em `.env.local`:
+  ```
+  RESEND_API_KEY=your-resend-api-key
+  RESEND_FROM_EMAIL=noreply@yourdomain.com
+  ```
+
+**6. Sentry (Monitoring)**
+- Criar conta em [sentry.io](https://sentry.io)
+- Criar novo projeto (Next.js ou Node.js)
+- Copiar DSN
+- Configurar em `.env.local`:
+  ```
+  SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+  ```
+
+**7. PostHog (Analytics)**
+- Criar conta em [app.posthog.com](https://app.posthog.com)
+- Ir a Project Settings
+- Copiar Project API key
+- Configurar em `.env.local`:
+  ```
+  POSTHOG_API_KEY=your-posthog-api-key
+  POSTHOG_HOST=https://app.posthog.com
+  ```
+
+**8. Upstash Redis (Queue)**
+- Criar conta em [console.upstash.com](https://console.upstash.com)
+- Criar nova database Redis
+- Copiar REST URL e REST Token
+- Configurar em `.env.local`:
+  ```
+  UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+  UPSTASH_REDIS_REST_TOKEN=your-redis-token
+  ```
+
+**9. Security Keys**
+- Gerar JWT_SECRET:
+  ```bash
+  openssl rand -base64 32
+  ```
+- Gerar WEBHOOK_SECRET:
+  ```bash
+  openssl rand -hex 32
+  ```
+- Configurar em `.env.local`:
+  ```
+  JWT_SECRET=your-generated-jwt-secret
+  WEBHOOK_SECRET=your-generated-webhook-secret
+  ```
+
 ### Executar
 
 ```bash
 npm install
+npm run check-env  # verificar variáveis de ambiente
 npm run dev        # desenvolvimento
 npm run build      # produção
 npm run typecheck  # verificação de tipos
+npm run check-env  # verificar variáveis de ambiente
+```
+
+## 📁 Estrutura do Projeto
+
+```
+serviceflow-ai/
+├── .env.example              # Template de variáveis de ambiente
+├── .env.local                # Variáveis locais (NÃO commitar)
+├── .env.development          # Variáveis de desenvolvimento
+├── .env.test                 # Variáveis de teste
+├── .env.production           # Variáveis de produção (NÃO commitar)
+├── .gitignore                # Ignorar ficheiros sensíveis
+├── package.json              # Dependências e scripts
+├── vercel.json               # Configuração Vercel
+├── scripts/
+│   └── check-env.js          # Script de verificação de ambiente
+├── src/
+│   ├── App.tsx               # Componente principal com rotas
+│   ├── components/           # Componentes reutilizáveis
+│   ├── contexts/             # Context providers (Auth, Data, AI, etc.)
+│   ├── data/                 # Dados mock e constantes
+│   ├── hooks/                # Custom hooks
+│   ├── lib/                  # Lógica de negócio (AI engine, DB, etc.)
+│   ├── pages/                # Páginas da aplicação
+│   └── types/                # Definições TypeScript
+└── README.md                 # Este ficheiro
 ```
 
 ### 🚀 Deploy no Vercel
@@ -869,7 +1120,11 @@ vercel --prod
 2. Aceder a [vercel.com/new](https://vercel.com/new)
 3. Importar o repositório
 4. Vercel deteta automaticamente o Vite (framework preset)
-5. Clicar em **Deploy**
+5. **Configurar variáveis de ambiente** (Settings → Environment Variables):
+   - Adicionar todas as variáveis de `.env.production`
+   - Marcar como sensíveis (especialmente chaves API)
+   - Configurar para Production, Preview e Development separadamente
+6. Clicar em **Deploy**
 
 #### Opção C — Via Vercel Dashboard (sem Git)
 
