@@ -1,25 +1,96 @@
-# Dependencies
+# =============================================================================
+# DEPENDENCIES
+# =============================================================================
 node_modules/
 .pnp
 .pnp.js
+jspm_packages/
 
-# Testing
-coverage/
-*.lcov
-.nyc_output
-
-# Production
-dist/
-build/
-
-# Environment variables
+# =============================================================================
+# ENVIRONMENT VARIABLES & SECRETS (CRITICAL)
+# =============================================================================
+# Environment files with sensitive data
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*.local
 
-# Logs
+# Backend environment files
+apps/api/.env
+apps/api/.env.local
+apps/api/.env.*.local
+
+# Never commit secrets, keys, or credentials
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Service account credentials
+*-credentials.json
+*-service-account.json
+*-keyfile.json
+firebase-service-account.json
+google-credentials.json
+aws-credentials.json
+
+# Private keys
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.private_key
+*.privatekey
+
+# =============================================================================
+# DATABASE & STORAGE
+# =============================================================================
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma
+apps/api/prisma/migrations/*/migration_lock.toml
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Redis dump
+dump.rdb
+appendonly.aof
+
+# =============================================================================
+# UPLOADS & USER DATA
+# =============================================================================
+uploads/
+public/uploads/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# =============================================================================
+# BUILD OUTPUTS
+# =============================================================================
+dist/
+build/
+.next/
+out/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# =============================================================================
+# LOGS
+# =============================================================================
 logs/
 *.log
 npm-debug.log*
@@ -27,12 +98,24 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.log.*
 
-# Editor directories and files
+# =============================================================================
+# TESTING & COVERAGE
+# =============================================================================
+coverage/
+*.lcov
+.nyc_output
+test-results/
+playwright-report/
+
+# =============================================================================
+# EDITOR & IDE
+# =============================================================================
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+!.vscode/settings.json
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
@@ -40,26 +123,35 @@ lerna-debug.log*
 *.sw?
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
 
-# Runtime data
+# =============================================================================
+# OS FILES
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# RUNTIME DATA
+# =============================================================================
 pids/
 *.pid
 *.seed
 *.pid.lock
 
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
+# =============================================================================
+# PACKAGE MANAGERS
+# =============================================================================
+# npm
 .npm
-
-# Optional eslint cache
 .eslintcache
-
-# Optional REPL history
 .node_repl_history
-
-# Output of 'npm pack'
 *.tgz
 
 # Yarn
@@ -68,16 +160,121 @@ jspm_packages/
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
+yarn-error.log
 
 # pnpm
 .pnpm-store/
+pnpm-lock.yaml
 
-# Vite
-*.local
-
-# TypeScript
+# =============================================================================
+# TYPESCRIPT
+# =============================================================================
 *.tsbuildinfo
 
-# Misc
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-compose.override.yml
+.docker/
+
+# =============================================================================
+# VERCEL & DEPLOYMENT
+# =============================================================================
 .vercel
-.next/
+
+# =============================================================================
+# MONOREPO
+# =============================================================================
+.turbo
+*.tsbuildinfo
+
+# =============================================================================
+# BACKEND SPECIFIC
+# =============================================================================
+# NestJS
+apps/api/dist/
+apps/api/coverage/
+
+# Prisma generated
+apps/api/node_modules/.prisma/
+
+# =============================================================================
+# SENSITIVE CONFIGURATION
+# =============================================================================
+# Database connection strings
+*database*.json
+*database*.config
+
+# API keys and tokens
+*api-key*
+*api_key*
+*apikey*
+*token*
+*secret*
+
+# But allow example files
+!.env.example
+!*.env.example
+!apps/api/.env.example
+
+# =============================================================================
+# BACKUPS & ARCHIVES
+# =============================================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.bak
+*.backup
+
+# =============================================================================
+# SESSION & CACHE
+# =============================================================================
+sessions/
+.cache/
+*.session
+
+# =============================================================================
+# CERTIFICATES & SSL
+# =============================================================================
+ssl/
+certs/
+*.csr
+*.crl
+
+# =============================================================================
+# WEBHOOK SECRETS
+# =============================================================================
+*webhook*secret*
+*webhook*key*
+
+# =============================================================================
+# THIRD-PARTY CREDENTIALS
+# =============================================================================
+# Stripe
+*stripe*key*
+
+# WhatsApp/Meta
+*whatsapp*token*
+*meta*token*
+
+# OpenAI/Groq
+*openai*key*
+*groq*key*
+
+# Supabase
+*supabase*key*
+
+# Sentry
+*sentry*dsn*
+
+# PostHog
+*posthog*key*
+
+# Resend
+*resend*key*
+
+# Upstash
+*upstash*token*

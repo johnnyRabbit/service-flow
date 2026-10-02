@@ -222,6 +222,7 @@ docker run -p 3001:3001 serviceflow-api
 - [API Docs](./docs/API.md)
 - [Database Schema](./prisma/schema.prisma)
 - [Permissions](../../docs/PERMISSIONS.md)
+- [Security Guide](../../docs/SECURITY.md) - Proteção de secrets e boas práticas
 
 ---
 
