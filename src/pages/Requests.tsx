@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { MapPin, User, Plus } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { usePermission } from '../hooks/usePermission';
+import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/ui/Modal';
 import { RequestState } from '../types';
 
@@ -19,12 +21,24 @@ const stateFlow: RequestState[] = ['NEW', 'REVIEWING', 'QUOTE_PENDING', 'QUOTED'
 
 export function Requests() {
   const { requests, customers, services, updateRequest, createRequest } = useData();
+  const { can } = usePermission();
+  const { user } = useAuth();
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ customerId: '', serviceId: '', problem: '', address: '', urgency: 'NORMAL' as const });
 
-  const filtered = filter === 'ALL' ? requests : requests.filter(r => r.state === filter);
+  // Filter requests based on permissions
+  const canViewAll = can('requests:view_all');
+  const canViewAssigned = can('requests:view_assigned');
+  
+  let filtered = filter === 'ALL' ? requests : requests.filter(r => r.state === filter);
+  
+  // Apply permission filter
+  if (!canViewAll && canViewAssigned) {
+    filtered = filtered.filter(r => r.assignedUserId === user?.id);
+  }
+  
   const selected = requests.find(r => r.id === selectedRequest);
 
   const handleStateChange = (id: string, newState: RequestState) => {

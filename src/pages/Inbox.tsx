@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Search, AlertTriangle, Filter, CheckSquare, Square, Clock, Radio } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useWebhookSimulator } from '../hooks/useWebhookSimulator';
+import { usePermission } from '../hooks/usePermission';
+import { useAuth } from '../contexts/AuthContext';
 import { ConversationState, Channel } from '../types';
 
 const stateLabels: Record<ConversationState, { label: string; color: string; dot: string }> = {
@@ -34,6 +36,8 @@ export function Inbox() {
   const navigate = useNavigate();
   const { conversations, updateConversationState } = useData();
   const { isSimulating, startSimulation, stopSimulation, triggerOnce, events } = useWebhookSimulator();
+  const { can } = usePermission();
+  const { user } = useAuth();
   const [filter, setFilter] = useState<string>('ALL');
   const [channelFilter, setChannelFilter] = useState<string>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
@@ -41,11 +45,28 @@ export function Inbox() {
   const [selected, setSelected] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Filter conversations based on permissions
+  const canViewAll = can('inbox:view_all');
+  const canViewAssigned = can('inbox:view_assigned');
+  
   const filtered = conversations.filter(conv => {
+    // Permission filter: if user can only view assigned, filter by assignedUserId
+    if (!canViewAll && canViewAssigned) {
+      if (conv.assignedUserId !== user?.id) return false;
+    }
+    
+    // State filter
     if (filter !== 'ALL' && conv.state !== filter) return false;
+    
+    // Channel filter
     if (channelFilter !== 'ALL' && conv.channel !== channelFilter) return false;
+    
+    // Priority filter
     if (priorityFilter !== 'ALL' && conv.priority !== priorityFilter) return false;
+    
+    // Search filter
     if (search && !conv.customer.name.toLowerCase().includes(search.toLowerCase()) && !conv.lastMessage.toLowerCase().includes(search.toLowerCase())) return false;
+    
     return true;
   });
 
