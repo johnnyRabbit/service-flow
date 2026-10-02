@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { usePermission } from '../hooks/usePermission';
+import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../contexts/ToastContext';
 
@@ -15,6 +17,8 @@ const stateConfig: Record<string, { label: string; color: string; icon: any }> =
 
 export function Appointments() {
   const { appointments, customers, services, createAppointment } = useData();
+  const { can } = usePermission();
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showCreate, setShowCreate] = useState(false);
@@ -27,11 +31,20 @@ export function Appointments() {
     notes: '',
   });
 
+  // Filter appointments based on permissions
+  const canViewAll = can('appointments:view_all');
+  const canViewAssigned = can('appointments:view_assigned');
+  
+  let filteredAppointments = appointments;
+  if (!canViewAll && canViewAssigned) {
+    filteredAppointments = appointments.filter(a => a.assignedUserId === user?.id);
+  }
+
   const today = '2024-12-20';
   const tomorrow = '2024-12-21';
 
-  const todayAppts = appointments.filter(a => a.date === today);
-  const tomorrowAppts = appointments.filter(a => a.date === tomorrow);
+  const todayAppts = filteredAppointments.filter(a => a.date === today);
+  const tomorrowAppts = filteredAppointments.filter(a => a.date === tomorrow);
 
   const handleCreate = () => {
     if (!form.customerId || !form.serviceId || !form.date || !form.time) {
