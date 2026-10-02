@@ -1,220 +1,277 @@
-import { 
-  MessageSquare, ClipboardList, Bot, UserCheck, Calendar, 
-  TrendingUp, Clock, Star, ArrowUpRight, Users
-} from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { useData } from '../contexts/DataContext';
-
-const weeklyData = [
-  { day: 'Seg', conversations: 8, requests: 5 },
-  { day: 'Ter', conversations: 12, requests: 7 },
-  { day: 'Qua', conversations: 9, requests: 6 },
-  { day: 'Qui', conversations: 15, requests: 10 },
-  { day: 'Sex', conversations: 11, requests: 8 },
-  { day: 'Sáb', conversations: 6, requests: 3 },
-  { day: 'Dom', conversations: 2, requests: 1 },
-];
-
-const hourlyData = [
-  { hour: '8h', msgs: 3 }, { hour: '9h', msgs: 8 }, { hour: '10h', msgs: 12 },
-  { hour: '11h', msgs: 9 }, { hour: '12h', msgs: 5 }, { hour: '13h', msgs: 4 },
-  { hour: '14h', msgs: 11 }, { hour: '15h', msgs: 7 }, { hour: '16h', msgs: 9 },
-  { hour: '17h', msgs: 6 }, { hour: '18h', msgs: 3 },
-];
+import { useState, useMemo } from 'react';
+import { MessageSquare, ClipboardList, Calendar, Users, Clock, Zap, UserCheck, TrendingUp } from 'lucide-react';
+import { useDashboardMetrics, DateRange } from '../hooks/useDashboardMetrics';
+import { KPICard } from '../components/ui/KPICard';
+import { TrendChart } from '../components/ui/TrendChart';
+import { StateDistribution } from '../components/ui/StateDistribution';
+import { AlertBanner, Alert } from '../components/ui/AlertBanner';
 
 export function Dashboard() {
-  const { conversations, requests, appointments, customers } = useData();
+  const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+  const metrics = useDashboardMetrics(dateRange);
 
-  const activeConversations = conversations.filter(c => c.state !== 'CLOSED').length;
-  const requestsByAI = requests.length; // All created by AI in demo
-  const humanHandoffs = conversations.filter(c => c.humanTakeover).length;
-  const todayAppts = appointments.filter(a => a.date === '2024-12-20').length;
+  // Generate intelligent alerts based on metrics
+  const alerts = useMemo(() => {
+    const alertList: Alert[] = [];
+    const now = new Date().toISOString();
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Visão geral da sua operação</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 bg-white">
-            <option>Últimos 7 dias</option>
-            <option>Últimos 30 dias</option>
-            <option>Este mês</option>
-          </select>
-        </div>
-      </div>
+    // High handoff rate alert
+    if (metrics.handoffRate > 30) {
+      alertList.push({
+        id: 'high-handoff',
+        type: 'warning',
+        title: 'Taxa de Handoff Elevada',
+        message: `${metrics.handoffRate.toFixed(1)}% das conversas requerem intervenção humana. Considere ajustar o nível de autonomia da IA.`,
+        timestamp: now,
+      });
+    }
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard icon={MessageSquare} label="Conversas Ativas" value={activeConversations} total={`de ${conversations.length} totais`} trend={12} color="blue" />
-        <MetricCard icon={ClipboardList} label="Pedidos" value={requests.length} total={`${requestsByAI} pela IA`} trend={8} color="green" />
-        <MetricCard icon={Calendar} label="Marcações Hoje" value={todayAppts} total={`${appointments.filter(a => a.state === 'CONFIRMED').length} confirmadas`} trend={0} color="purple" />
-        <MetricCard icon={Clock} label="Tempo Poupadо" value="14.5h" total="esta semana" trend={23} color="orange" />
-      </div>
+    // Low AI resolution rate
+    if (metrics.aiResolutionRate < 50 && metrics.totalConversations > 10) {
+      alertList.push({
+        id: 'low-ai-resolution',
+        type: 'info',
+        title: 'Oportunidade de Melhoria',
+        message: `Apenas ${metrics.aiResolutionRate.toFixed(1)}% das conversas são resolvidas automaticamente pela IA.`,
+        timestamp: now,
+      });
+    }
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="w-4 h-4 text-primary-500" />
-            <span className="text-xs font-medium text-gray-500">Pedidos IA</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{requestsByAI}</p>
-          <p className="text-xs text-green-600 mt-1">{requests.length > 0 ? Math.round((requestsByAI / requests.length) * 100) : 0}% do total</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <UserCheck className="w-4 h-4 text-warning-500" />
-            <span className="text-xs font-medium text-gray-500">Human Handoffs</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{humanHandoffs}</p>
-          <p className="text-xs text-gray-500 mt-1">{conversations.length > 0 ? Math.round((humanHandoffs / conversations.length) * 100) : 0}% necessitaram humano</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium text-gray-500">Clientes</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{customers.length}</p>
-          <p className="text-xs text-green-600 mt-1">na base de dados</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Star className="w-4 h-4 text-yellow-500" />
-            <span className="text-xs font-medium text-gray-500">Satisfação</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">4.7/5</p>
-          <p className="text-xs text-green-600 mt-1">+0.2 vs mês anterior</p>
-        </div>
-      </div>
+    // High no-show rate
+    if (metrics.noShowRate > 20) {
+      alertList.push({
+        id: 'high-noshow',
+        type: 'error',
+        title: 'Taxa de Não Comparência Alta',
+        message: `${metrics.noShowRate.toFixed(1)}% das marcações resultam em não comparência. Considere enviar lembretes automáticos.`,
+        timestamp: now,
+      });
+    }
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Conversas & Pedidos (7 dias)</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <Tooltip />
-              <Area type="monotone" dataKey="conversations" stroke="#3b82f6" fill="#dbeafe" strokeWidth={2} />
-              <Area type="monotone" dataKey="requests" stroke="#22c55e" fill="#dcfce7" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Mensagens por Hora (Hoje)</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="hour" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="msgs" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+    // Positive trend alert
+    if (metrics.conversationTrend > 20) {
+      alertList.push({
+        id: 'positive-trend',
+        type: 'success',
+        title: 'Crescimento Positivo',
+        message: `As conversas aumentaram ${metrics.conversationTrend.toFixed(1)}% em relação ao período anterior.`,
+        timestamp: now,
+      });
+    }
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Pedidos Recentes</h3>
-            <a href="/requests" className="text-xs text-primary-600 hover:underline">Ver todos</a>
-          </div>
-          <div className="space-y-3">
-            {requests.slice(0, 4).map((req) => (
-              <div key={req.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                <div className={`w-2 h-2 rounded-full ${
-                  req.state === 'NEW' ? 'bg-blue-500' :
-                  req.state === 'REVIEWING' ? 'bg-yellow-500' :
-                  req.state === 'SCHEDULED' ? 'bg-green-500' :
-                  req.state === 'QUOTED' ? 'bg-purple-500' : 'bg-gray-400'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{req.customer.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{req.service.name}</p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  req.state === 'NEW' ? 'bg-blue-100 text-blue-700' :
-                  req.state === 'REVIEWING' ? 'bg-yellow-100 text-yellow-700' :
-                  req.state === 'SCHEDULED' ? 'bg-green-100 text-green-700' :
-                  req.state === 'QUOTED' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {req.state === 'NEW' ? 'Novo' : req.state === 'REVIEWING' ? 'A rever' : req.state === 'SCHEDULED' ? 'Agendado' : req.state === 'QUOTED' ? 'Orçamentado' : req.state}
-                </span>
-              </div>
-            ))}
-            {requests.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Sem pedidos ainda</p>}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Conversas Ativas</h3>
-            <a href="/inbox" className="text-xs text-primary-600 hover:underline">Ver todas</a>
-          </div>
-          <div className="space-y-3">
-            {conversations.filter(c => c.state !== 'CLOSED').slice(0, 4).map((conv) => (
-              <div key={conv.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                  conv.state === 'AI_ACTIVE' ? 'bg-primary-100 text-primary-700' :
-                  conv.state === 'NEEDS_HUMAN' ? 'bg-red-100 text-red-700' :
-                  conv.state === 'HUMAN_ACTIVE' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {conv.customer.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{conv.customer.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{conv.lastMessage}</p>
-                </div>
-                <div className="text-right">
-                  {conv.unreadCount > 0 && (
-                    <span className="bg-primary-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                      {conv.unreadCount}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {activeConversations === 0 && <p className="text-sm text-gray-500 text-center py-4">Sem conversas ativas</p>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+    return alertList.filter(a => !dismissedAlerts.includes(a.id));
+  }, [metrics, dismissedAlerts]);
 
-function MetricCard({ icon: Icon, label, value, total, trend, color }: {
-  icon: any;
-  label: string;
-  value: string | number;
-  total: string;
-  trend: number;
-  color: string;
-}) {
-  const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
+  const handleDismissAlert = (id: string) => {
+    setDismissedAlerts([...dismissedAlerts, id]);
+  };
+
+  const handleExport = () => {
+    const csv = [
+      ['Métrica', 'Valor'],
+      ['Total de Conversas', metrics.totalConversations],
+      ['Conversas Ativas', metrics.activeConversations],
+      ['Conversas por IA', metrics.conversationsByAI],
+      ['Conversas por Humano', metrics.conversationsByHuman],
+      ['Taxa de Resolução IA', `${metrics.aiResolutionRate.toFixed(1)}%`],
+      ['Total de Pedidos', metrics.totalRequests],
+      ['Handoffs para Humano', metrics.humanHandoffs],
+      ['Taxa de Handoff', `${metrics.handoffRate.toFixed(1)}%`],
+      ['Total de Marcações', metrics.totalAppointments],
+      ['Marcações Confirmadas', metrics.confirmedAppointments],
+      ['Taxa de Não Comparência', `${metrics.noShowRate.toFixed(1)}%`],
+      ['Total de Clientes', metrics.totalCustomers],
+      ['Novos Clientes', metrics.newCustomers],
+      ['Tempo Estimado Poupadо', `${metrics.estimatedTimeSaved.toFixed(1)}h`],
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dashboard-report-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorClasses[color]}`}>
-          <Icon className="w-4.5 h-4.5" />
+    <div className="space-y-6">
+      {/* Alert Banner */}
+      <AlertBanner alerts={alerts} onDismiss={handleDismissAlert} />
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Métricas em tempo real da sua operação</p>
         </div>
-        {trend > 0 && (
-          <div className="flex items-center gap-1 text-green-600">
-            <ArrowUpRight className="w-3 h-3" />
-            <span className="text-xs font-medium">{trend}%</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as DateRange)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+            <option value="this_month">Este mês</option>
+            <option value="last_month">Mês passado</option>
+          </select>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            Exportar CSV
+          </button>
+        </div>
       </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500 mt-1">{total}</p>
+
+      {/* KPI Cards - Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          title="Conversas Totais"
+          value={metrics.totalConversations}
+          trend={metrics.conversationTrend}
+          icon={<MessageSquare className="w-5 h-5" />}
+          color="blue"
+          subtitle={`${metrics.activeConversations} ativas`}
+        />
+        <KPICard
+          title="Pedidos"
+          value={metrics.totalRequests}
+          trend={metrics.requestTrend}
+          icon={<ClipboardList className="w-5 h-5" />}
+          color="green"
+          subtitle={`${metrics.requestsByAI} pela IA`}
+        />
+        <KPICard
+          title="Marcações"
+          value={metrics.totalAppointments}
+          icon={<Calendar className="w-5 h-5" />}
+          color="purple"
+          subtitle={`${metrics.confirmedAppointments} confirmadas`}
+        />
+        <KPICard
+          title="Clientes"
+          value={metrics.totalCustomers}
+          trend={metrics.customerTrend}
+          icon={<Users className="w-5 h-5" />}
+          color="orange"
+          subtitle={`${metrics.newCustomers} novos`}
+        />
+      </div>
+
+      {/* KPI Cards - Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          title="Taxa de Resolução IA"
+          value={`${metrics.aiResolutionRate.toFixed(1)}%`}
+          icon={<Zap className="w-5 h-5" />}
+          color="indigo"
+          subtitle={`${metrics.conversationsByAI} conversas`}
+        />
+        <KPICard
+          title="Handoffs"
+          value={metrics.humanHandoffs}
+          trend={-metrics.handoffRate}
+          icon={<UserCheck className="w-5 h-5" />}
+          color="red"
+          subtitle={`${metrics.handoffRate.toFixed(1)}% do total`}
+        />
+        <KPICard
+          title="Tempo Poupadо"
+          value={`${metrics.estimatedTimeSaved.toFixed(1)}h`}
+          icon={<Clock className="w-5 h-5" />}
+          color="green"
+          subtitle="estimado pela IA"
+        />
+        <KPICard
+          title="Taxa Não Comparência"
+          value={`${metrics.noShowRate.toFixed(1)}%`}
+          icon={<TrendingUp className="w-5 h-5" />}
+          color="orange"
+          subtitle={`${metrics.totalAppointments - metrics.completedAppointments - metrics.confirmedAppointments} marcações`}
+        />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TrendChart
+          days={dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 30}
+          title="Conversas por Dia"
+          dataKey="conversations"
+        />
+        <TrendChart
+          days={dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 30}
+          title="Pedidos por Dia"
+          dataKey="requests"
+        />
+      </div>
+
+      {/* State Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StateDistribution
+          data={metrics.requestsByState}
+          title="Distribuição de Pedidos por Estado"
+        />
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Resumo de Performance</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Resolução Automática (IA)</span>
+                <span className="text-sm font-semibold text-gray-900">{metrics.aiResolutionRate.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
+                  style={{ width: `${metrics.aiResolutionRate}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Taxa de Confirmação</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {metrics.totalAppointments > 0 
+                    ? ((metrics.confirmedAppointments / metrics.totalAppointments) * 100).toFixed(1)
+                    : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all duration-500" 
+                  style={{ width: `${metrics.totalAppointments > 0 ? (metrics.confirmedAppointments / metrics.totalAppointments) * 100 : 0}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Tempo Médio de Resposta</span>
+                <span className="text-sm font-semibold text-gray-900">{metrics.avgResponseTime} min</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-purple-500 h-2 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min((metrics.avgResponseTime / 60) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Satisfação do Cliente</span>
+                <span className="text-sm font-semibold text-gray-900">4.7/5.0</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all duration-500" 
+                  style={{ width: '94%' }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
