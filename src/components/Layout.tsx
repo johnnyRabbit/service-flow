@@ -5,21 +5,23 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import { usePermission } from '../hooks/usePermission';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Inbox', href: '/inbox', icon: MessageSquare },
-  { name: 'Pedidos', href: '/requests', icon: ClipboardList },
-  { name: 'Clientes', href: '/customers', icon: Users },
-  { name: 'Serviços', href: '/services', icon: Wrench },
-  { name: 'Marcações', href: '/appointments', icon: Calendar },
-  { name: 'Teste Webhook', href: '/webhook-tester', icon: Radio },
-  { name: 'WhatsApp', href: '/whatsapp', icon: Phone },
-  { name: 'AI Console', href: '/ai-console', icon: Activity },
-  { name: 'Handoffs', href: '/handoffs', icon: Users },
-  { name: 'Automações', href: '/automations', icon: Zap },
-  { name: 'Audit Log', href: '/audit', icon: Shield },
-  { name: 'Definições', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard:view' as const },
+  { name: 'Inbox', href: '/inbox', icon: MessageSquare, permission: 'inbox:view_all' as const },
+  { name: 'Pedidos', href: '/requests', icon: ClipboardList, permission: 'requests:view_all' as const },
+  { name: 'Clientes', href: '/customers', icon: Users, permission: 'customers:view_all' as const },
+  { name: 'Serviços', href: '/services', icon: Wrench, permission: 'services:view' as const },
+  { name: 'Marcações', href: '/appointments', icon: Calendar, permission: 'appointments:view_all' as const },
+  { name: 'Teste Webhook', href: '/webhook-tester', icon: Radio, permission: 'settings:update_integrations' as const },
+  { name: 'WhatsApp', href: '/whatsapp', icon: Phone, permission: 'settings:update_integrations' as const },
+  { name: 'AI Console', href: '/ai-console', icon: Activity, permission: 'ai:view_console' as const },
+  { name: 'Handoffs', href: '/handoffs', icon: Users, permission: 'handoffs:view' as const },
+  { name: 'Automações', href: '/automations', icon: Zap, permission: 'automations:view' as const },
+  { name: 'Equipa', href: '/team', icon: Users, permission: 'team:view' as const },
+  { name: 'Audit Log', href: '/audit', icon: Shield, permission: 'audit:view' as const },
+  { name: 'Definições', href: '/settings', icon: Settings, permission: 'settings:view' as const },
 ];
 
 export function Layout() {
@@ -27,8 +29,12 @@ export function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { organization, conversations } = useData();
+  const { can } = usePermission();
 
   const unreadTotal = conversations.filter(c => c.state !== 'CLOSED').reduce((sum, c) => sum + c.unreadCount, 0);
+
+  // Filter navigation based on permissions
+  const filteredNavigation = navigation.filter(item => can(item.permission));
 
   const handleLogout = () => {
     logout();
@@ -54,7 +60,7 @@ export function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = location.pathname === item.href || 
               (item.href === '/inbox' && location.pathname.startsWith('/inbox/'));
             return (
