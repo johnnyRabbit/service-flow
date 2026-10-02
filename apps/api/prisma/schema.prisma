@@ -1,0 +1,426 @@
+// Prisma Schema - ServiceFlow AI
+// Database: PostgreSQL (Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ORGANIZATION (Multi-tenant root)
+// ============================================================================
+
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  logo            String?
+  phone           String
+  email           String
+  timezone        String   @default("Europe/Lisbon")
+  autonomyLevel   Int      @default(2) // 1, 2, or 3
+  
+  // Business hours (JSON)
+  businessHours   Json     @default("{}")
+  
+  // Service zones
+  serviceZones    String[] @default([])
+  
+  // Prohibited data categories for AI (e.g., medical data for clinics)
+  prohibitedAICategories String[] @default([])
+  
+  // Relationships
+  users           User[]
+  customers       Customer[]
+  services        Service[]
+  requests        ServiceRequest[]
+  conversations   Conversation[]
+  appointments    Appointment[]
+  automationRules AutomationRule[]
+  auditLogs       AuditLog[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================================================
+// USER (Organization members)
+// ============================================================================
+
+model User {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Auth
+  email           String   @unique
+  passwordHash    String
+  name            String
+  avatar          String?
+  
+  // Role-based access control
+  role            Role     @default(TECHNICIAN)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  lastLoginAt     DateTime?
+  
+  // Relationships
+  assignedConversations Conversation[] @relation("AssignedUser")
+  assignedRequests      ServiceRequest[] @relation("AssignedUser")
+  assignedAppointments  Appointment[] @relation("AssignedUser")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([email])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  VIEWER
+}
+
+// ============================================================================
+// CUSTOMER
+// ============================================================================
+
+model Customer {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name            String
+  phone           String
+  email           String?
+  address         String?
+  
+  // Relationships
+  conversations   Conversation[]
+  requests        ServiceRequest[]
+  appointments    Appointment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([phone])
+  @@index([organizationId, phone])
+}
+
+// ============================================================================
+// SERVICE
+// ============================================================================
+
+model Service {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name            String
+  description     String?
+  icon            String   @default("Wrench")
+  
+  // Fields configuration (JSON)
+  requiredFields  Json     @default("[]")
+  optionalFields  Json     @default("[]")
+  
+  // Rules (JSON)
+  rules           Json     @default("[]")
+  
+  // Pricing and duration
+  estimatedDuration Int    @default(60) // minutes
+  basePrice       Decimal? @db.Decimal(10, 2)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Relationships
+  requests        ServiceRequest[]
+  appointments    Appointment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+}
+
+// ============================================================================
+// SERVICE REQUEST
+// ============================================================================
+
+model ServiceRequest {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  serviceId       String
+  service         Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  // State machine
+  state           RequestState @default(NEW)
+  urgency         Urgency @default(NORMAL)
+  
+  // Content
+  problem         String
+  address         String
+  
+  // Collected data (JSON)
+  data            Json     @default("{}")
+  
+  // Attachments (JSON array)
+  attachments     Json     @default("[]")
+  
+  // Scheduling
+  scheduledDate   DateTime?
+  scheduledTime   String?
+  
+  // Assignment
+  assignedUserId  String?
+  assignedUser    User?    @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([state])
+  @@index([assignedUserId])
+}
+
+enum RequestState {
+  NEW
+  REVIEWING
+  QUOTE_PENDING
+  QUOTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Urgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================================================
+// CONVERSATION
+// ============================================================================
+
+model Conversation {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  channel         Channel  @default(WHATSAPP)
+  state           ConversationState @default(AI_ACTIVE)
+  
+  // AI configuration
+  aiEnabled       Boolean  @default(true)
+  humanTakeover   Boolean  @default(false)
+  
+  // Assignment
+  assignedUserId  String?
+  assignedUser    User?    @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  
+  // Last message cache
+  lastMessage     String?
+  lastMessageAt   DateTime?
+  unreadCount     Int      @default(0)
+  priority        Priority @default(NORMAL)
+  
+  // Relationships
+  messages        Message[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([state])
+  @@index([assignedUserId])
+}
+
+enum Channel {
+  WHATSAPP
+  EMAIL
+  WEB
+}
+
+enum ConversationState {
+  AI_ACTIVE
+  WAITING_CUSTOMER
+  NEEDS_HUMAN
+  HUMAN_ACTIVE
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+// ============================================================================
+// MESSAGE
+// ============================================================================
+
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderType      SenderType
+  senderName      String
+  
+  content         String
+  
+  // Attachments (JSON array)
+  attachments     Json?    @default("[]")
+  
+  // Metadata (JSON)
+  metadata        Json?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+enum SenderType {
+  CUSTOMER
+  AI
+  USER
+  SYSTEM
+}
+
+// ============================================================================
+// APPOINTMENT
+// ============================================================================
+
+model Appointment {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  serviceId       String
+  service         Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  time            String
+  duration        Int      @default(60) // minutes
+  
+  state           AppointmentState @default(SCHEDULED)
+  
+  // Assignment
+  assignedUserId  String?
+  assignedUser    User?    @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([date])
+  @@index([assignedUserId])
+}
+
+enum AppointmentState {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ============================================================================
+// AUTOMATION RULE
+// ============================================================================
+
+model AutomationRule {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name            String
+  description     String?
+  
+  trigger         String
+  conditions      Json     @default("[]")
+  actions         Json     @default("[]")
+  
+  delay           Int      @default(0)
+  delayUnit       DelayUnit @default(MINUTES)
+  
+  enabled         Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([enabled])
+}
+
+enum DelayUnit {
+  MINUTES
+  HOURS
+  DAYS
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  actorType       ActorType
+  actorId         String
+  actorName       String
+  
+  action          String
+  entityType      String
+  entityId        String
+  
+  before          Json?
+  after           Json?
+  
+  // Correlation ID for tracing
+  correlationId   String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([actorType])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+enum ActorType {
+  USER
+  AI
+  SYSTEM
+}
