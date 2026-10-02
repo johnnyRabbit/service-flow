@@ -1059,6 +1059,56 @@ Este repositório contém um **protótipo funcional do frontend** que demonstra 
 | **Frontend Deploy** | Vercel | [vercel.com](https://vercel.com) |
 | **Backend Deploy** | Railway | [railway.app](https://railway.app) |
 
+## 🏗️ Estrutura Monorepo
+
+```
+serviceflow-ai/
+├── apps/
+│   └── api/                    # Backend NestJS (Fase 11)
+│       ├── src/
+│       │   ├── main.ts
+│       │   ├── app.module.ts
+│       │   ├── auth/           # JWT + RBAC
+│       │   ├── prisma/         # Database layer
+│       │   ├── customers/      # CRUD customers
+│       │   ├── conversations/  # Conversations
+│       │   ├── requests/       # Service requests
+│       │   ├── ai/             # AI engine
+│       │   ├── whatsapp/       # WhatsApp integration
+│       │   └── ...
+│       ├── prisma/
+│       │   └── schema.prisma   # Database schema
+│       ├── package.json
+│       └── README.md
+├── src/                        # Frontend React (atual)
+│   ├── App.tsx
+│   ├── components/
+│   ├── contexts/
+│   ├── pages/
+│   └── ...
+├── docs/                       # Documentação
+├── scripts/                    # Scripts úteis
+├── .env.example
+├── .gitignore
+└── README.md
+```
+
+### Frontend (atual)
+- **Stack:** React + Vite + TypeScript + Tailwind
+- **Estado:** Mocks em memória (sem backend)
+- **Uso:** Protótipo funcional, demos, validação de UX
+
+### Backend (apps/api)
+- **Stack:** NestJS + Prisma + PostgreSQL
+- **Estado:** Estrutura base criada (Fase 11 em progresso)
+- **Features:**
+  - ✅ Autenticação JWT + RBAC
+  - ✅ Schema Prisma completo
+  - ✅ Módulos principais (auth, customers, conversations, requests)
+  - 🔜 Integrações reais (WhatsApp, AI, Email)
+  - 🔜 Background jobs (BullMQ)
+  - 🔜 Webhooks
+
 ### Arquitetura do Protótipo
 
 ```
