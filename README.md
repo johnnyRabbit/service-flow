@@ -541,7 +541,7 @@ Arquitetura **modular dentro do monólito**.
 | **6** | WhatsApp | ✅ Implementado (configuração + status + eventos) |
 | **7** | Appointments | ✅ Implementado (criação + calendário + lista) |
 | **8** | BullMQ automations | ✅ Implementado (execução simulada + logs + métricas) |
-| **9** | Dashboard | ✅ Implementado |
+| **9** | Dashboard | ✅ Implementado (avançado com métricas reais, KPIs, alertas, exportação) |
 | **10** | Hardening, tests, logging | 🔜 Próxima fase |
 
 > Em cada fase: **implementar → testar → documentar → explicar decisões → indicar riscos → só depois avançar**.
@@ -943,6 +943,75 @@ Worker processa
 - Sem priorização de jobs (em produção: prioridades BullMQ)
 - Sem rate limiting (em produção: Redis + limiter)
 - Sem monitorização de falhas (em produção: Sentry + alertas)
+
+#### Fase 9 — Dashboard Avançado
+
+**Implementado:**
+
+*Dashboard profissional com métricas reais:*
+- ✅ **Métricas calculadas em tempo real** — dados reais do database (não mock):
+  - Total de conversas, pedidos, marcações, clientes
+  - Conversas ativas vs resolvidas
+  - Taxa de resolução IA
+  - Handoffs e taxa de handoff
+  - Tempo estimado poupado
+  - Taxa de não comparência
+- ✅ **Filtros por período**:
+  - Últimos 7 dias
+  - Últimos 30 dias
+  - Últimos 90 dias
+  - Este mês
+  - Mês passado
+- ✅ **KPIs com trends** — comparação com período anterior:
+  - Conversas (variação %)
+  - Pedidos (variação %)
+  - Clientes (variação %)
+  - Handoffs (variação %)
+- ✅ **Gráficos interativos** (Recharts):
+  - Trend de conversas por dia (area chart)
+  - Trend de pedidos por dia (area chart)
+  - Distribuição de pedidos por estado (pie chart)
+  - Barras de progresso para KPIs
+- ✅ **Alertas inteligentes** — gerados automaticamente baseado nas métricas:
+  - Taxa de handoff elevada (>30%)
+  - Baixa resolução IA (<50%)
+  - Alta taxa de não comparência (>20%)
+  - Crescimento positivo (>20%)
+  - Alertas dismissíveis
+- ✅ **Exportação de relatórios** — CSV com todas as métricas
+- ✅ **Resumo de performance** — barras de progresso visuais:
+  - Resolução automática
+  - Taxa de confirmação
+  - Tempo médio de resposta
+  - Satisfação do cliente
+
+**Arquitetura:**
+```
+src/hooks/
+└── useDashboardMetrics.ts    # Cálculo de métricas em tempo real
+
+src/components/ui/
+├── KPICard.tsx               # Card de KPI com trend
+├── TrendChart.tsx            # Gráfico de tendência temporal
+├── StateDistribution.tsx     # Gráfico de distribuição (pie)
+├── PeriodComparison.tsx      # Comparação entre períodos
+└── AlertBanner.tsx           # Banner de alertas inteligentes
+
+src/pages/
+└── Dashboard.tsx             # Dashboard principal
+```
+
+**Decisões:**
+- Métricas calculadas no frontend com `useMemo` (em produção: backend com queries otimizadas)
+- Gráficos com Recharts (biblioteca madura e flexível)
+- Alertas inteligentes baseados em thresholds configuráveis
+- Exportação CSV simples (em produção: PDF com charts)
+
+**Riscos:**
+- Cálculo de métricas no frontend pode ser lento com muitos dados (em produção: backend)
+- Sem caching de métricas (em produção: Redis cache)
+- Alertas não persistem entre sessões (em produção: database)
+- Sem websockets para atualização em tempo real (em produção: WebSocket/SSE)
 
 ---
 
