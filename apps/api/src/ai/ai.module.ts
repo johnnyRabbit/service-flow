@@ -1,3 +1,8 @@
 import { Module } from '@nestjs/common';
-@Module({})
+import { GroqService } from './groq.service';
+
+@Module({
+  providers: [GroqService],
+  exports: [GroqService],
+})
 export class AIModule {}
