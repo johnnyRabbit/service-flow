@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Headers, Query, Logger, HttpCode } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
-import { MessageProcessorService } from './message-processor.service';
+import { QueueService } from '../queue/queue.service';
 
 @Controller('webhooks/whatsapp')
 export class WhatsAppController {
@@ -10,7 +10,7 @@ export class WhatsAppController {
   constructor(
     private configService: ConfigService,
     private whatsappService: WhatsAppService,
-    private messageProcessor: MessageProcessorService,
+    private queueService: QueueService,
   ) {}
 
   /**
@@ -125,14 +125,16 @@ export class WhatsAppController {
       messageText = `[${message.type} recebido]`;
     }
 
-    // Process message through AI and send response
-    await this.messageProcessor.processIncomingMessage({
+    // Add message to queue for async processing
+    await this.queueService.addMessageToQueue({
       from,
       messageId,
       timestamp,
       text: messageText,
       metadata,
     });
+
+    this.logger.log(`Message ${messageId} added to queue for processing`);
   }
 
   /**
