@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from '../hooks/useCustomers';
 import { Modal } from '../components/ui/Modal';
 import { PermissionGuard } from '../components/ui/PermissionGuard';
 import { Customer } from '../types';

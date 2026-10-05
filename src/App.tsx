@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/query-client';
 import { Layout } from './components/Layout';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -79,17 +81,19 @@ function AppRoutes() {
 
 function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AIProvider>
-          <HandoffProvider>
-            <AutomationProvider>
-              <AppRoutes />
-            </AutomationProvider>
-          </HandoffProvider>
-        </AIProvider>
-      </AuthProvider>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AuthProvider>
+          <AIProvider>
+            <HandoffProvider>
+              <AutomationProvider>
+                <AppRoutes />
+              </AutomationProvider>
+            </HandoffProvider>
+          </AIProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }
 
