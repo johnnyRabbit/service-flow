@@ -5,12 +5,14 @@ import { WhatsAppController } from './whatsapp.controller';
 import { MessageProcessorService } from './message-processor.service';
 import { AIModule } from '../ai/ai.module';
 import { AuditModule } from '../audit/audit.module';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
   imports: [
     HttpModule,
     AIModule,
     AuditModule,
+    QueueModule,
   ],
   controllers: [WhatsAppController],
   providers: [WhatsAppService, MessageProcessorService],
