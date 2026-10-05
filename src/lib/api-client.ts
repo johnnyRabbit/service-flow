@@ -1,23 +1,15 @@
 /**
  * ServiceFlow API Client
- * Connects frontend to backend API
+ * Connects frontend to backend API using Axios
  */
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api/v1';
+import api from './api';
 
 class ApiClient {
-  private token: string | null = null;
-
-  constructor() {
-    // Load token from localStorage
-    this.token = localStorage.getItem('auth_token');
-  }
-
   /**
    * Set authentication token
    */
   setToken(token: string) {
-    this.token = token;
     localStorage.setItem('auth_token', token);
   }
 
@@ -25,7 +17,6 @@ class ApiClient {
    * Clear authentication token
    */
   clearToken() {
-    this.token = null;
     localStorage.removeItem('auth_token');
   }
 
@@ -33,76 +24,46 @@ class ApiClient {
    * Get authentication token
    */
   getToken(): string | null {
-    return this.token;
+    return localStorage.getItem('auth_token');
   }
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return !!this.token;
-  }
-
-  /**
-   * Make authenticated request
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+    return !!this.getToken();
   }
 
   /**
    * GET request
    */
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+    const response = await api.get<T>(endpoint, { params });
+    return response.data;
   }
 
   /**
    * POST request
    */
   async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    const response = await api.post<T>(endpoint, data);
+    return response.data;
   }
 
   /**
    * PUT request
    */
   async put<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    const response = await api.put<T>(endpoint, data);
+    return response.data;
   }
 
   /**
    * DELETE request
    */
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    const response = await api.delete<T>(endpoint);
+    return response.data;
   }
 
   // ============================================================================

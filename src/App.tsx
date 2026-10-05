@@ -19,6 +19,8 @@ import { AIConsole } from './pages/AIConsole';
 import { HandoffSupervisor } from './pages/HandoffSupervisor';
 import { WhatsAppIntegration } from './pages/WhatsAppIntegration';
 import { TeamManagement } from './pages/TeamManagement';
+import { CompleteIntegrationExample } from './components/examples/CompleteIntegrationExample';
+import { Notifications } from './components/Notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { DataProvider } from './contexts/DataContext';
@@ -73,8 +75,10 @@ function AppRoutes() {
           <Route path="team" element={<TeamManagement />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="integration-example" element={<CompleteIntegrationExample />} />
         </Route>
       </Routes>
+      <Notifications />
     </BrowserRouter>
   );
 }

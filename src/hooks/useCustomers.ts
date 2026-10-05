@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
+import { useNotificationStore } from '../stores/notificationStore';
 import type { Customer } from '../types';
 
 // Query keys
@@ -31,6 +32,7 @@ export function useCustomer(id: string) {
 // Create customer
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
+  const notifications = useNotificationStore();
 
   return useMutation({
     mutationFn: (data: Omit<Customer, 'id' | 'organizationId' | 'createdAt' | 'totalRequests'>) =>
@@ -38,6 +40,10 @@ export function useCreateCustomer() {
     onSuccess: () => {
       // Invalidate and refetch customers list
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      notifications.success('Cliente criado', 'O cliente foi criado com sucesso');
+    },
+    onError: (error: Error) => {
+      notifications.error('Erro ao criar cliente', error.message);
     },
   });
 }
@@ -45,6 +51,7 @@ export function useCreateCustomer() {
 // Update customer
 export function useUpdateCustomer() {
   const queryClient = useQueryClient();
+  const notifications = useNotificationStore();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Customer> }) =>
@@ -54,6 +61,10 @@ export function useUpdateCustomer() {
       queryClient.setQueryData(customerKeys.detail(variables.id), data);
       // Invalidate list
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      notifications.success('Cliente atualizado', 'O cliente foi atualizado com sucesso');
+    },
+    onError: (error: Error) => {
+      notifications.error('Erro ao atualizar cliente', error.message);
     },
   });
 }
@@ -61,12 +72,17 @@ export function useUpdateCustomer() {
 // Delete customer
 export function useDeleteCustomer() {
   const queryClient = useQueryClient();
+  const notifications = useNotificationStore();
 
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/customers/${id}`),
     onSuccess: () => {
       // Invalidate list
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      notifications.success('Cliente removido', 'O cliente foi removido com sucesso');
+    },
+    onError: (error: Error) => {
+      notifications.error('Erro ao remover cliente', error.message);
     },
   });
 }
