@@ -1,3 +1,10 @@
 import { Module } from '@nestjs/common';
-@Module({})
+import { AppointmentsService } from './appointments.service';
+import { AppointmentsController } from './appointments.controller';
+
+@Module({
+  controllers: [AppointmentsController],
+  providers: [AppointmentsService],
+  exports: [AppointmentsService],
+})
 export class AppointmentsModule {}
