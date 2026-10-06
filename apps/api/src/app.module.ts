@@ -20,6 +20,7 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AuditModule } from './audit/audit.module';
 import { QueueModule } from './queue/queue.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { QueueModule } from './queue/queue.module';
     // Integrations
     WhatsAppModule,
     WebhooksModule,
+    EmailModule,
     
     // Monitoring
     AuditModule,
