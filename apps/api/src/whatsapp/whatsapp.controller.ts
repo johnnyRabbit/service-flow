@@ -45,10 +45,16 @@ export class WhatsAppController {
     @Headers('x-hub-signature-256') signature: string,
   ) {
     try {
-      // Verify signature (optional but recommended)
+      // 🔒 CRITICAL: Signature verification is MANDATORY in production
       const payload = JSON.stringify(body);
-      if (signature && !this.whatsappService.verifyWebhookSignature(payload, signature)) {
-        this.logger.warn('Invalid webhook signature');
+      
+      if (!signature) {
+        this.logger.error('❌ Missing webhook signature - rejecting request');
+        return { status: 'error', message: 'Missing signature' };
+      }
+
+      if (!this.whatsappService.verifyWebhookSignature(payload, signature)) {
+        this.logger.error('❌ Invalid webhook signature - rejecting request');
         return { status: 'error', message: 'Invalid signature' };
       }
 

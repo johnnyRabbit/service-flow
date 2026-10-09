@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { CustomersService } from './customers.service';
+import { CreateCustomerDto, UpdateCustomerDto, GetCustomersDto } from './dto/customer.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -12,8 +13,8 @@ export class CustomersController {
 
   @Get()
   @Roles(Role.OWNER, Role.ADMIN, Role.MANAGER, Role.TECHNICIAN, Role.VIEWER)
-  async findAll(@Request() req) {
-    return this.customersService.findAll(req.user.organizationId);
+  async findAll(@Request() req, @Query() query: GetCustomersDto) {
+    return this.customersService.findAll(req.user.organizationId, query);
   }
 
   @Get(':id')
@@ -24,23 +25,13 @@ export class CustomersController {
 
   @Post()
   @Roles(Role.OWNER, Role.ADMIN, Role.MANAGER)
-  async create(@Request() req, @Body() body: {
-    name: string;
-    phone: string;
-    email?: string;
-    address?: string;
-  }) {
+  async create(@Request() req, @Body() body: CreateCustomerDto) {
     return this.customersService.create(req.user.organizationId, body);
   }
 
   @Put(':id')
   @Roles(Role.OWNER, Role.ADMIN, Role.MANAGER)
-  async update(@Request() req, @Param('id') id: string, @Body() body: {
-    name?: string;
-    phone?: string;
-    email?: string;
-    address?: string;
-  }) {
+  async update(@Request() req, @Param('id') id: string, @Body() body: UpdateCustomerDto) {
     return this.customersService.update(req.user.organizationId, id, body);
   }
 

@@ -1,15 +1,47 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateCustomerDto, UpdateCustomerDto, GetCustomersDto } from './dto/customer.dto';
 
 @Injectable()
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(organizationId: string) {
-    return this.prisma.customer.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAll(organizationId: string, options: GetCustomersDto = {}) {
+    const { page = 1, limit = 50, search } = options;
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = { organizationId };
+    
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Execute queries in parallel
+    const [customers, total] = await Promise.all([
+      this.prisma.customer.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.customer.count({ where }),
+    ]);
+
+    return {
+      data: customers,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + customers.length < total,
+      },
+    };
   }
 
   async findOne(organizationId: string, id: string) {
