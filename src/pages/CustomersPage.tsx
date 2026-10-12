@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, Loader2 } from 'lucide-react';
-import { useData } from '../contexts/DataContext';
 import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from '../hooks/useCustomers';
 import { Modal } from '../components/ui/Modal';
 import { PermissionGuard } from '../components/ui/PermissionGuard';
 import { Customer } from '../types';
 
 export function CustomersPage() {
-  const { customers, createCustomer, updateCustomer, deleteCustomer } = useData();
+  const { data: customers, isLoading, error, refetch } = useCustomers();
+  const createMutation = useCreateCustomer();
+  const updateMutation = useUpdateCustomer();
+  const deleteMutation = useDeleteCustomer();
+  
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' });
 
-  const filtered = customers.filter((c) =>
+  // Filter customers based on search
+  const filtered = (customers || []).filter((c: Customer) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.phone.includes(search) ||
     c.email?.toLowerCase().includes(search.toLowerCase())
@@ -31,28 +35,61 @@ export function CustomersPage() {
 
   const handleCreate = () => {
     if (!form.name || !form.phone) return;
-    createCustomer(form);
-    setShowCreate(false);
+    createMutation.mutate(form, {
+      onSuccess: () => {
+        setShowCreate(false);
+        setForm({ name: '', phone: '', email: '', address: '' });
+      }
+    });
   };
 
   const handleUpdate = () => {
     if (!editing) return;
-    updateCustomer(editing.id, form);
-    setEditing(null);
+    updateMutation.mutate({ id: editing.id, data: form }, {
+      onSuccess: () => {
+        setEditing(null);
+        setForm({ name: '', phone: '', email: '', address: '' });
+      }
+    });
   };
 
   const handleDelete = (c: Customer) => {
     if (confirm(`Remover cliente ${c.name}?`)) {
-      deleteCustomer(c.id);
+      deleteMutation.mutate(c.id);
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-xl">
+        <h3 className="text-lg font-semibold text-red-900 mb-2">Erro ao carregar clientes</h3>
+        <p className="text-sm text-red-700 mb-4">{error.message}</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-          <p className="text-sm text-gray-500 mt-1">{customers.length} clientes registados</p>
+          <p className="text-sm text-gray-500 mt-1">{customers?.length || 0} clientes registados</p>
         </div>
         <PermissionGuard permission="customers:create">
           <button
@@ -94,7 +131,7 @@ export function CustomersPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-primary-700">{c.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
+                      <span className="text-xs font-bold text-primary-700">{c.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
                     </div>
                     <span className="text-sm font-medium text-gray-900">{c.name}</span>
                   </div>
@@ -122,7 +159,11 @@ export function CustomersPage() {
                       </button>
                     </PermissionGuard>
                     <PermissionGuard permission="customers:delete">
-                      <button onClick={() => handleDelete(c)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                      <button 
+                        onClick={() => handleDelete(c)} 
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </PermissionGuard>
@@ -185,7 +226,12 @@ export function CustomersPage() {
             />
           </div>
           <div className="flex gap-2 pt-2">
-            <button onClick={handleCreate} disabled={!form.name || !form.phone} className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50">
+            <button 
+              onClick={handleCreate} 
+              disabled={!form.name || !form.phone || createMutation.isPending} 
+              className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Criar Cliente
             </button>
             <button onClick={() => setShowCreate(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
@@ -215,8 +261,17 @@ export function CustomersPage() {
             <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div className="flex gap-2 pt-2">
-            <button onClick={handleUpdate} className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Guardar</button>
-            <button onClick={() => setEditing(null)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Cancelar</button>
+            <button 
+              onClick={handleUpdate} 
+              disabled={updateMutation.isPending}
+              className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Guardar
+            </button>
+            <button onClick={() => setEditing(null)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+              Cancelar
+            </button>
           </div>
         </div>
       </Modal>
