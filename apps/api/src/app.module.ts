@@ -21,6 +21,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AuditModule } from './audit/audit.module';
 import { QueueModule } from './queue/queue.module';
 import { EmailModule } from './email/email.module';
+import { WebChatModule } from './webchat/webchat.module';
+import { MessengerModule } from './messenger/messenger.module';
 
 @Module({
   imports: [
@@ -64,6 +66,8 @@ import { EmailModule } from './email/email.module';
     WhatsAppModule,
     WebhooksModule,
     EmailModule,
+    WebChatModule,
+    MessengerModule,
     
     // Monitoring
     AuditModule,
